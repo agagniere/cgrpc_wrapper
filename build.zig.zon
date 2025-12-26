@@ -1,0 +1,19 @@
+.{
+    .name = .cgrpc_wrapper,
+    .version = "0.0.0",
+    .minimum_zig_version = "0.16.0-dev.1657+985a3565c",
+    .fingerprint = 0xb501c9835389c3b,
+
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+    },
+
+    .dependencies = .{
+        .grpc = .{
+            .url = "git+https://github.com/allyourcodebase/grpc?ref=master#fd65f9ac95057828189d567ee4aac886a06079be",
+            .hash = "grpc-1.76.0-1lXNFSxjAQBoyWOSnq9pDbv_XPZnajH_3PJ4MleIn_28",
+        },
+    },
+}
