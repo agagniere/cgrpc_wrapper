@@ -39,7 +39,12 @@ pub fn make_slice(gpa: Allocator, data: []const u8) !t.Slice {
 }
 
 test {
-    const cases: []const []const u8 = &.{ "Hello", "World !", "All your codebase are belong to us" };
+    const cases: []const []const u8 = &.{
+        "Short",
+        "Hello World (inlined)",
+        "All your codebase are belong to us (allocated)",
+        "At regina gravi iamdudum saucia cura vulnus alit venis et caeco carpitur igni.",
+    };
     for (cases) |case| {
         const a = try make_slice(std.testing.allocator, case);
         defer c.grpc_slice_unref(a);
