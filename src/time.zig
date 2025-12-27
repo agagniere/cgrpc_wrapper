@@ -10,7 +10,7 @@ pub const Deadline = union(enum) {
     timestamp: Io.Timestamp,
     duration: Io.Duration,
 
-    fn toGprTimespec(self: Deadline) t.Timespec {
+    pub fn toGprTimespec(self: Deadline) t.Timespec {
         return switch (self) {
             .timestamp => |timestamp| .{
                 .tv_sec = timestamp.toSeconds(),

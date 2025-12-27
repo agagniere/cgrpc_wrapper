@@ -23,7 +23,7 @@ pub const Event = union(enum) {
 };
 
 pub const CompletionQueue = struct {
-    handle: *t.completion_queue,
+    handle: *t.CompletionQueue,
 
     pub fn init(of_type: Type) CompletionQueue {
         return .{

@@ -26,7 +26,7 @@ pub const Channel = struct {
         queue: *CompletionQueue,
         method: []const u8,
         deadline: Deadline,
-    ) *t.call {
+    ) *t.Call {
         // A comment says:
         // "'method' and 'host' need only live through the invocation of this function."
         const method_slice = c.grpc_slice_from_static_buffer(method.ptr, method.len);

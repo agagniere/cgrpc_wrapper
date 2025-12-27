@@ -3,10 +3,10 @@ const std = @import("std");
 const root = @import("root.zig");
 const c = @import("cgrpc");
 const t = @import("types.zig");
+const make_slice = @import("slice.zig").make_slice;
 
 const Allocator = std.mem.Allocator;
 const Deadline = root.Deadline;
-const make_slice = root.make_slice;
 
 pub const Batch = struct {
     outbound: std.ArrayList(*t.ByteBuffer),
@@ -63,16 +63,16 @@ pub const Batch = struct {
     }
 
     pub fn addMetadata(self: *Batch, key: []const u8, value: []const u8) !void {
-        const k = make_slice(self.allocator, key);
+        const k: t.Slice = try make_slice(self.allocator, key);
         errdefer c.grpc_slice_unref(k);
-        const v = make_slice(self.allocator, value);
+        const v: t.Slice = try make_slice(self.allocator, value);
         errdefer c.grpc_slice_unref(v);
 
         try self.metadata.append(self.allocator, .{ .key = k, .value = v });
     }
 
     pub fn addMessageToSend(self: *Batch, message: []const u8) !void {
-        var slice = make_slice(self.allocator, message);
+        var slice: t.Slice = try make_slice(self.allocator, message);
         defer c.grpc_slice_unref(slice);
 
         const byte_buffer: *t.ByteBuffer = c.grpc_raw_byte_buffer_create((&slice)[0..1], 1);
@@ -174,7 +174,7 @@ pub const Batch = struct {
 
         const length = c.grpc_byte_buffer_length(buffer);
         const result = try self.allocator.alloc(u8, length);
-        var written: u32 = 0;
+        var written: usize = 0;
 
         var slice: t.Slice = undefined;
         while (c.grpc_byte_buffer_reader_next(&reader, &slice) == 1) {
