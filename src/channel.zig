@@ -1,8 +1,11 @@
 const std = @import("std");
 
+const root = @import("root.zig");
 const c = @import("cgrpc");
 const t = @import("types.zig");
-const Deadline = @import("time.zig").Deadline;
+
+const Deadline = root.Deadline;
+const CompletionQueue = root.CompletionQueue;
 
 pub const Channel = struct {
     credentials: *t.ChannelCredentials,

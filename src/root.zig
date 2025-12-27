@@ -2,6 +2,7 @@ const std = @import("std");
 const global = @import("global.zig");
 
 pub const Deadline = @import("time.zig").Deadline;
+pub const CompletionQueue = @import("queue.zig").CompletionQueue;
 
 pub const init = global.init;
 pub const deinit = global.deinit;
