@@ -62,6 +62,12 @@ pub fn juicyMain(gpa: Allocator, io: Io) !void {
             .success => |tag| {
                 std.log.debug("Batch complete: {x}", .{@intFromPtr(tag)});
                 std.debug.assert(&batch == @as(*grpc.client.Batch, @ptrCast(@alignCast(tag))));
+                if (status.status != 0) {
+                    const len = if (status.details.refcount == null) status.details.data.inlined.length else status.details.data.refcounted.length;
+                    const desc = if (status.details.refcount == null) status.details.data.inlined.bytes[0..len] else status.details.data.refcounted.bytes[0..len];
+                    std.log.err("{s}", .{desc});
+                    continue;
+                }
                 while (try batch.nextReceivedMessage()) |message| {
                     std.log.info("Received {} bytes : {x}", .{ message.len, message });
                     defer batch.allocator.free(message);
