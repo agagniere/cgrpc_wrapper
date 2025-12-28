@@ -206,5 +206,6 @@ pub const Batch = struct {
             c.grpc_slice_unref(metadata.key);
             c.grpc_slice_unref(metadata.value);
         }
+        self.metadata.deinit(self.allocator);
     }
 };

@@ -44,6 +44,7 @@ pub fn juicyMain(gpa: Allocator, io: Io) !void {
 
     var batch: grpc.client.Batch = try .init(gpa);
     defer batch.deinit();
+    try batch.addMetadata("custom-string", "Foo_bar-baz:toto");
     try batch.addMessageToSend(encoded_name.written());
     try batch.expectReceivedMessage();
     var status: grpc.client.Batch.Status = .{};
@@ -51,9 +52,10 @@ pub fn juicyMain(gpa: Allocator, io: Io) !void {
 
     queue.shutdown();
     while (queue.next(.{ .duration = .fromSeconds(1) })) |event| {
-        std.log.debug("{t}", .{event});
         switch (event) {
-            .timeout => {},
+            .timeout => {
+                std.log.warn("timeout", .{});
+            },
             .failure => |tag| {
                 std.log.err("Batch failed: {x}", .{@intFromPtr(tag)});
             },
