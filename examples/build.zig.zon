@@ -1,0 +1,18 @@
+.{
+    .name = .examples,
+    .version = "0.0.1",
+    .minimum_zig_version = "0.16.0-dev.1657+985a3565c",
+    .fingerprint = 0x7bd0ad45f44f18a1,
+
+    .paths = .{
+        "greeter.zig",
+    },
+
+    .dependencies = .{
+        .protobuf = .{
+            .url = "git+https://github.com/Arwalk/zig-protobuf?ref=zig-master#1c7ca085dffaa5fa42e4e8d3872d22dc509d2eb3",
+            .hash = "protobuf-3.0.0-0e82ajnkKABMeJpgOBXY_HbrlUnRpCosBAp32c6Ily6x",
+        },
+        .grpc = .{ .path = ".." },
+    },
+}
