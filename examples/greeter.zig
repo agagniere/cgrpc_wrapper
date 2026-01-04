@@ -12,7 +12,7 @@ pub fn main() !void {
     defer std.debug.assert(debug_allocator.deinit() == .ok);
     const gpa = debug_allocator.allocator();
 
-    var threaded: Io.Threaded = .init(gpa);
+    var threaded: Io.Threaded = .init(gpa, .{});
     defer threaded.deinit();
     const io = threaded.io();
 

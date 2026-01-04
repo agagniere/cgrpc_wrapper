@@ -25,6 +25,8 @@ pub fn version() [*:0]const u8 {
 }
 
 /// Return a C-string specifying what the 'g' in gRPC stands for
+///
+/// Each gRPC version uses a different G-word as its nickname
 pub fn gStandsFor() [*:0]const u8 {
     return c.grpc_g_stands_for();
 }
