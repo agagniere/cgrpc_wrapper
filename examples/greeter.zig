@@ -45,13 +45,14 @@ pub fn juicyMain(gpa: Allocator, io: Io) !void {
     var batch: grpc.client.Batch = try .init(gpa);
     defer batch.deinit();
     try batch.addMetadata("custom-string", "Foo_bar-baz:toto");
+    try batch.addMetadata("toto", "tata");
     try batch.addMessageToSend(encoded_name.written());
     try batch.expectReceivedMessage();
     var status: grpc.client.Batch.Status = .{};
     try batch.start(greet_call, @ptrCast(&batch), &status);
 
     queue.shutdown();
-    while (queue.next(.{ .duration = .fromSeconds(1) })) |event| {
+    while (queue.next(.{ .duration = .fromSeconds(2) })) |event| {
         switch (event) {
             .timeout => {
                 std.log.warn("timeout", .{});
@@ -69,8 +70,8 @@ pub fn juicyMain(gpa: Allocator, io: Io) !void {
                     continue;
                 }
                 while (try batch.nextReceivedMessage()) |message| {
-                    std.log.info("Received {} bytes : {x}", .{ message.len, message });
                     defer batch.allocator.free(message);
+                    std.log.info("Received {} bytes : {x}", .{ message.len, message });
                     var reader: Io.Reader = .fixed(message);
                     var response: protocol.HelloReply = try .decode(&reader, gpa);
                     defer response.deinit(gpa);

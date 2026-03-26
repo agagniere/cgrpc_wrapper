@@ -10,8 +10,8 @@
 
     .dependencies = .{
         .protobuf = .{
-            .url = "git+https://github.com/agagniere/zig-protobuf?ref=zig-master#37d4d47d77b747d9f8c5806ae7ab7800d12d8f5b",
-            .hash = "protobuf-3.0.0-0e82ak_kKADhiEPbctiYO2Gj0_fnMdpFhdKkaan09bxX",
+            .url = "git+https://github.com/Arwalk/zig-protobuf?ref=zig-master#fda6bab6e329cfa4e8b84b3d329213de0a0b4723",
+            .hash = "protobuf-3.0.0-0e82amqTKAAp7pNyUmCcPa1CTAimGps-WPcot4Ipc-d4",
         },
         .grpc = .{ .path = ".." },
     },
