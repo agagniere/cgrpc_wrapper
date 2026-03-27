@@ -30,7 +30,7 @@ pub fn main() !u8 {
     const greet_call = channel.createCall(
         &queue,
         "/helloworld.Greeter/SayHello",
-        .{ .duration = .fromSeconds(1) },
+        .{ .duration = std.time.ns_per_s },
     );
 
     const name: protocol.HelloRequest = .{ .name = "Ziguana" };
@@ -47,7 +47,7 @@ pub fn main() !u8 {
     batch.expectReceivedMessage();
     try batch.start(greet_call);
 
-    switch (try batch.wait(&queue, .{ .duration = .fromSeconds(2) })) {
+    switch (try batch.wait(&queue, .{ .duration = 2 * std.time.ns_per_s })) {
         .timeout => std.log.warn("timeout", .{}),
         .operation_failed => std.log.err("operation failed", .{}),
         .failure => |f| std.log.err("gRPC error {}: {s}", .{ f.code, f.details }),

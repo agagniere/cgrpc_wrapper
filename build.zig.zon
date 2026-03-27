@@ -1,7 +1,7 @@
 .{
     .name = .cgrpc_wrapper,
     .version = "0.2.0",
-    .minimum_zig_version = "0.16.0",
+    .minimum_zig_version = "0.15.0",
     .fingerprint = 0xb501c9835389c3b,
 
     .paths = .{
