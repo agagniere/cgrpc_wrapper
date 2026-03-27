@@ -1,5 +1,6 @@
 const std = @import("std");
 const builtin = @import("builtin");
+const build_info = @import("build_info");
 const grpc = @import("cgrpc_wrapper");
 const protobuf = @import("protobuf");
 const protocol = @import("helloworld.pb.zig");
@@ -44,8 +45,9 @@ pub fn juicyMain(gpa: Allocator, io: Io) !void {
 
     var batch: grpc.client.Batch = try .init(gpa);
     defer batch.deinit();
-    try batch.addMetadata("custom-string", "Foo_bar-baz:toto");
-    try batch.addMetadata("toto", "tata");
+    try batch.addMetadata("binary.name", build_info.name);
+    try batch.addMetadata("binary.version", build_info.version);
+    try batch.addMetadata("zig.version", builtin.zig_version_string);
     try batch.addMessageToSend(encoded_name.written());
     try batch.expectReceivedMessage();
     var status: grpc.client.Batch.Status = .{};

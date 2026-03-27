@@ -31,4 +31,11 @@ pub fn build(b: *std.Build) void {
     });
     exe.step.dependOn(&run_protoc.step);
     b.installArtifact(exe);
+
+    { // Build info
+        const build_info = b.addOptions();
+        build_info.addOption([]const u8, "version", zon.version);
+        build_info.addOption([]const u8, "name", name);
+        mod.addOptions("build_info", build_info);
+    }
 }
