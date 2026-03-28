@@ -12,7 +12,6 @@ pub const Batch = struct {
     outbound: ?*t.ByteBuffer = null,
     inbound: ?*t.ByteBuffer = null,
     is_inbound_expected: bool = false,
-    operations: std.ArrayList(t.Operation),
     metadata: std.ArrayList(t.Metadata),
     allocator: Allocator,
 
@@ -52,7 +51,7 @@ pub const Batch = struct {
     };
 
     pub fn init(gpa: Allocator) Batch {
-        return .{ .operations = .empty, .allocator = gpa, .metadata = .empty };
+        return .{ .allocator = gpa, .metadata = .empty };
     }
 
     pub fn addMetadata(self: *Batch, key: []const u8, value: []const u8) !void {
@@ -67,22 +66,11 @@ pub const Batch = struct {
     pub fn setMessageToSend(self: *Batch, message: []const u8) !void {
         var slice: t.Slice = try make_slice(self.allocator, message);
         defer c.grpc_slice_unref(slice);
-
         self.outbound = c.grpc_raw_byte_buffer_create((&slice)[0..1], 1);
-        const op: t.Operation = .{
-            .op = c.GRPC_OP_SEND_MESSAGE,
-            .data = .{ .send_message = .{ .send_message = self.outbound.? } },
-        };
-        try self.operations.append(self.allocator, op);
     }
 
-    pub fn expectReceivedMessage(self: *Batch) !void {
+    pub fn expectReceivedMessage(self: *Batch) void {
         self.is_inbound_expected = true;
-        const op: t.Operation = .{
-            .op = c.GRPC_OP_RECV_MESSAGE,
-            .data = .{ .recv_message = .{ .recv_message = @ptrCast(&self.inbound) } },
-        };
-        try self.operations.append(self.allocator, op);
     }
 
     pub const Status = struct {
@@ -94,6 +82,9 @@ pub const Batch = struct {
     };
 
     pub fn start(self: *Batch, call: *t.Call, tag: *opaque {}, status: *Status) !void {
+        var operations = try std.ArrayList(t.Operation).initCapacity(self.allocator, 6);
+        defer operations.deinit(self.allocator);
+
         const first: t.Operation = .{
             .op = c.GRPC_OP_SEND_INITIAL_METADATA,
             .data = .{ .send_initial_metadata = .{
@@ -123,13 +114,21 @@ pub const Batch = struct {
                 .trailing_metadata = &status.trailing_metadata,
             } },
         };
-        try self.operations.insertSlice(self.allocator, 0, &.{ first, second });
-        try self.operations.appendSlice(self.allocator, &.{ penultimate, last });
+        try operations.appendSlice(self.allocator, &.{ first, second });
+        if (self.outbound) |buf| try operations.append(self.allocator, .{
+            .op = c.GRPC_OP_SEND_MESSAGE,
+            .data = .{ .send_message = .{ .send_message = buf } },
+        });
+        if (self.is_inbound_expected) try operations.append(self.allocator, .{
+            .op = c.GRPC_OP_RECV_MESSAGE,
+            .data = .{ .recv_message = .{ .recv_message = @ptrCast(&self.inbound) } },
+        });
+        try operations.appendSlice(self.allocator, &.{ penultimate, last });
 
         return switch (c.grpc_call_start_batch(
             call,
-            self.operations.items.ptr,
-            self.operations.items.len,
+            operations.items.ptr,
+            operations.items.len,
             @ptrCast(tag),
             null,
         )) {
@@ -162,7 +161,7 @@ pub const Batch = struct {
         const buffer = self.inbound orelse return null;
         var reader: c.grpc_byte_buffer_reader = undefined;
         if (c.grpc_byte_buffer_reader_init(&reader, buffer) != 1) unreachable;
-        defer c.grpc_byte_buffer_reader_destroy(&reader); // useless
+        defer c.grpc_byte_buffer_reader_destroy(&reader); // this is a noop
 
         const length = c.grpc_byte_buffer_length(buffer);
         const result = try self.allocator.alloc(u8, length);
@@ -186,7 +185,6 @@ pub const Batch = struct {
     pub fn deinit(self: *Batch) void {
         if (self.outbound) |buf| c.grpc_byte_buffer_destroy(buf);
         if (self.inbound) |buf| c.grpc_byte_buffer_destroy(buf);
-        self.operations.deinit(self.allocator);
         for (self.metadata.items) |metadata| {
             c.grpc_slice_unref(metadata.key);
             c.grpc_slice_unref(metadata.value);
