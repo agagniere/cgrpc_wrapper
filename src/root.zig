@@ -1,10 +1,10 @@
 const std = @import("std");
 const global = @import("global.zig");
+pub const client = @import("client.zig");
 
 pub const Deadline = @import("time.zig").Deadline;
 pub const CompletionQueue = @import("queue.zig").CompletionQueue;
 pub const Channel = @import("channel.zig").Channel;
-pub const client = @import("client.zig");
 
 pub const init = global.init;
 pub const deinit = global.deinit;

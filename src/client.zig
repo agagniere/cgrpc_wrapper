@@ -9,8 +9,9 @@ const Allocator = std.mem.Allocator;
 const Deadline = root.Deadline;
 
 pub const Batch = struct {
-    outbound: std.ArrayList(*t.ByteBuffer),
-    inbound: std.ArrayList(?*t.ByteBuffer),
+    outbound: ?*t.ByteBuffer = null,
+    inbound: ?*t.ByteBuffer = null,
+    is_inbound_expected: bool = false,
     operations: std.ArrayList(t.Operation),
     metadata: std.ArrayList(t.Metadata),
     allocator: Allocator,
@@ -50,16 +51,8 @@ pub const Batch = struct {
         completion_queue_shutdown,
     };
 
-    pub fn init(gpa: Allocator) !Batch {
-        // inbound is preallocated and cannot grow as pointers are passed
-        // to gRPC but are invalidated when growing the list
-        return .{
-            .outbound = .empty,
-            .inbound = try .initCapacity(gpa, 16),
-            .operations = .empty,
-            .allocator = gpa,
-            .metadata = .empty,
-        };
+    pub fn init(gpa: Allocator) Batch {
+        return .{ .operations = .empty, .allocator = gpa, .metadata = .empty };
     }
 
     pub fn addMetadata(self: *Batch, key: []const u8, value: []const u8) !void {
@@ -71,27 +64,23 @@ pub const Batch = struct {
         try self.metadata.append(self.allocator, .{ .key = k, .value = v });
     }
 
-    pub fn addMessageToSend(self: *Batch, message: []const u8) !void {
+    pub fn setMessageToSend(self: *Batch, message: []const u8) !void {
         var slice: t.Slice = try make_slice(self.allocator, message);
         defer c.grpc_slice_unref(slice);
 
-        const byte_buffer: *t.ByteBuffer = c.grpc_raw_byte_buffer_create((&slice)[0..1], 1);
-        errdefer c.grpc_byte_buffer_destroy(byte_buffer);
-        try self.outbound.append(self.allocator, byte_buffer);
-
+        self.outbound = c.grpc_raw_byte_buffer_create((&slice)[0..1], 1);
         const op: t.Operation = .{
             .op = c.GRPC_OP_SEND_MESSAGE,
-            .data = .{ .send_message = .{ .send_message = self.outbound.getLast() } },
+            .data = .{ .send_message = .{ .send_message = self.outbound.? } },
         };
         try self.operations.append(self.allocator, op);
     }
 
     pub fn expectReceivedMessage(self: *Batch) !void {
-        const dest: *?*t.ByteBuffer = try self.inbound.addOneBounded();
-        dest.* = null;
+        self.is_inbound_expected = true;
         const op: t.Operation = .{
             .op = c.GRPC_OP_RECV_MESSAGE,
-            .data = .{ .recv_message = .{ .recv_message = @ptrCast(dest) } },
+            .data = .{ .recv_message = .{ .recv_message = @ptrCast(&self.inbound) } },
         };
         try self.operations.append(self.allocator, op);
     }
@@ -163,11 +152,14 @@ pub const Batch = struct {
         };
     }
 
-    /// To be called only after the completion queue event confirmed this batch succeeded
+    /// To be called only after the completion queue event confirmed this batch succeeded.
     ///
-    /// Returned slice must be freed
-    pub fn nextReceivedMessage(self: *Batch) !?[]u8 {
-        const buffer = (self.inbound.pop() orelse return null) orelse return error.NotReceived;
+    /// Returned slice must be freed by the caller.
+    /// An error is returned if no inbound message is expected.
+    /// null is returned if no message was received.
+    pub fn getReceivedMessage(self: *Batch) !?[]u8 {
+        if (!self.is_inbound_expected) return error.NoInboundMessageExpected;
+        const buffer = self.inbound orelse return null;
         var reader: c.grpc_byte_buffer_reader = undefined;
         if (c.grpc_byte_buffer_reader_init(&reader, buffer) != 1) unreachable;
         defer c.grpc_byte_buffer_reader_destroy(&reader); // useless
@@ -192,15 +184,8 @@ pub const Batch = struct {
 
     /// Destroy all gRPC buffers and release allocated memory
     pub fn deinit(self: *Batch) void {
-        for (self.outbound.items) |buffer| {
-            c.grpc_byte_buffer_destroy(buffer);
-        }
-        self.outbound.deinit(self.allocator);
-        for (self.inbound.items) |buffer| {
-            if (buffer) |buf|
-                c.grpc_byte_buffer_destroy(buf);
-        }
-        self.inbound.deinit(self.allocator);
+        if (self.outbound) |buf| c.grpc_byte_buffer_destroy(buf);
+        if (self.inbound) |buf| c.grpc_byte_buffer_destroy(buf);
         self.operations.deinit(self.allocator);
         for (self.metadata.items) |metadata| {
             c.grpc_slice_unref(metadata.key);

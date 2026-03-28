@@ -43,12 +43,12 @@ pub fn juicyMain(gpa: Allocator, io: Io) !void {
     defer encoded_name.deinit();
     try name.encode(&encoded_name.writer, gpa);
 
-    var batch: grpc.client.Batch = try .init(gpa);
+    var batch: grpc.client.Batch = .init(gpa);
     defer batch.deinit();
     try batch.addMetadata("binary.name", build_info.name);
     try batch.addMetadata("binary.version", build_info.version);
     try batch.addMetadata("zig.version", builtin.zig_version_string);
-    try batch.addMessageToSend(encoded_name.written());
+    try batch.setMessageToSend(encoded_name.written());
     try batch.expectReceivedMessage();
     var status: grpc.client.Batch.Status = .{};
     try batch.start(greet_call, @ptrCast(&batch), &status);
@@ -71,7 +71,7 @@ pub fn juicyMain(gpa: Allocator, io: Io) !void {
                     std.log.err("{s}", .{desc});
                     continue;
                 }
-                while (try batch.nextReceivedMessage()) |message| {
+                if (try batch.getReceivedMessage()) |message| {
                     defer batch.allocator.free(message);
                     std.log.info("Received {} bytes : {x}", .{ message.len, message });
                     var reader: Io.Reader = .fixed(message);
