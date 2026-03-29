@@ -53,7 +53,7 @@ fn responseOf(comptime VTable: type, comptime method: []const u8) type {
 ///     .queue = &queue,
 ///     .allocator = gpa,
 /// };
-/// var reply = try stub.call("SayHello", request, deadline);
+/// var reply = try stub.call(.SayHello, request, .{ .deadline = .{ .duration = .fromSeconds(2) } });
 /// defer reply.deinit(gpa);
 /// ```
 pub fn Stub(comptime ServiceFn: anytype) type {
@@ -93,6 +93,7 @@ pub fn Stub(comptime ServiceFn: anytype) type {
         };
 
         pub const CallOptions = struct {
+            deadline: Deadline,
             metadata: []const Metadata = &.{},
         };
 
@@ -103,7 +104,6 @@ pub fn Stub(comptime ServiceFn: anytype) type {
             self: *@This(),
             comptime method: Method,
             request: requestOf(VTable, @tagName(method)),
-            deadline: Deadline,
             options: CallOptions,
         ) CallError(method)!responseOf(VTable, @tagName(method)) {
             const method_name = @tagName(method);
@@ -117,7 +117,7 @@ pub fn Stub(comptime ServiceFn: anytype) type {
             defer encoded.deinit();
             try request.encode(&encoded.writer, arena_alloc);
 
-            const grpc_call = self.channel.createCall(self.queue, path, deadline);
+            const grpc_call = self.channel.createCall(self.queue, path, options.deadline);
             defer c.grpc_call_unref(grpc_call);
 
             var batch: client.Batch = .init(arena_alloc);
@@ -127,7 +127,7 @@ pub fn Stub(comptime ServiceFn: anytype) type {
             batch.expectReceivedMessage();
             try batch.start(grpc_call);
 
-            return switch (try batch.wait(self.queue, deadline)) {
+            return switch (try batch.wait(self.queue, options.deadline)) {
                 .timeout => Error.Timeout,
                 .failure => Error.GrpcError,
                 .success => |bytes| {

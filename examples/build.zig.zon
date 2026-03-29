@@ -1,7 +1,7 @@
 .{
     .name = .examples,
-    .version = "0.0.2",
-    .minimum_zig_version = "0.16.0-dev.1657+985a3565c",
+    .version = "0.1.0",
+    .minimum_zig_version = "0.16.0-dev.3006+94355f192",
     .fingerprint = 0x7bd0ad45f44f18a1,
 
     .paths = .{
@@ -15,8 +15,8 @@
             .hash = "protobuf-3.0.0-0e82auyUKACQqyLICPhWm6kJoAru5DNP-idAJMP1W94r",
         },
         .otelproto = .{
-            .url = "git+https://github.com/open-telemetry/opentelemetry-proto?ref=v1.9.0#a8951735f7801e8adfaec5c0ace9262771cfec6e",
-            .hash = "N-V-__8AAOuRBABBd0ZyohQ4x_ZiMz8XKAoqth7hWzHYZSaC",
+            .url = "git+https://github.com/open-telemetry/opentelemetry-proto?ref=v1.10.0#ca839c51f706f5d53bfb46f06c3e90c3af3a52c6",
+            .hash = "N-V-__8AAAWrBAB5BlaavGCPzOprJWy9JRTmyt3PUy-NJxsY",
         },
     },
 }

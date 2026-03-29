@@ -33,7 +33,8 @@ pub fn main(init: std.process.Init) !void {
         .resource_logs = logs.resource_logs,
     };
 
-    var reply = try stub.call(.Export, request, .{ .duration = .fromSeconds(5) }, .{
+    var reply = try stub.call(.Export, request, .{
+        .deadline = .{ .duration = .fromSeconds(5) },
         .metadata = &.{
             .{ .key = "binary.name", .value = build_info.name },
             .{ .key = "binary.version", .value = build_info.version },
