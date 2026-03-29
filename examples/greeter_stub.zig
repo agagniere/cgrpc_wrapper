@@ -24,7 +24,7 @@ pub fn main(init: std.process.Init) !void {
     };
 
     const request: protocol.HelloRequest = .{ .name = "Ziguana" };
-    var reply = try stub.call("SayHello", request, .{ .duration = .fromSeconds(2) }, .{
+    var reply = try stub.call(.SayHello, request, .{ .duration = .fromSeconds(2) }, .{
         .metadata = &.{
             .{ .key = "binary.name", .value = build_info.name },
             .{ .key = "binary.version", .value = build_info.version },

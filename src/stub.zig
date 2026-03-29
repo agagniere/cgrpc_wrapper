@@ -55,6 +55,9 @@ pub fn Stub(comptime ServiceFn: anytype) type {
         queue: *PluckQueue,
         allocator: Allocator,
 
+        /// Enum of available RPC methods, derived from the service definition.
+        pub const Method = std.meta.FieldEnum(VTable);
+
         pub const Error = error{
             Timeout,
             GrpcError,
@@ -76,12 +79,13 @@ pub fn Stub(comptime ServiceFn: anytype) type {
         /// The returned value is allocated using `self.allocator` and must be freed by the caller.
         pub fn call(
             self: *@This(),
-            comptime method: []const u8,
-            request: requestOf(VTable, method),
+            comptime method: Method,
+            request: requestOf(VTable, @tagName(method)),
             deadline: Deadline,
             options: CallOptions,
-        ) (Error || error{OutOfMemory} || anyerror)!responseOf(VTable, method) {
-            const path = "/" ++ VTable.package ++ "." ++ VTable.service_name ++ "/" ++ method;
+        ) (Error || error{OutOfMemory} || anyerror)!responseOf(VTable, @tagName(method)) {
+            const method_name = @tagName(method);
+            const path = "/" ++ VTable.package ++ "." ++ VTable.service_name ++ "/" ++ method_name;
 
             var arena = std.heap.ArenaAllocator.init(self.allocator);
             defer arena.deinit();
@@ -107,7 +111,7 @@ pub fn Stub(comptime ServiceFn: anytype) type {
                 .success => |bytes| {
                     const b = bytes orelse return Error.NoResponse;
                     var reader: std.Io.Reader = .fixed(b);
-                    return responseOf(VTable, method).decode(&reader, self.allocator);
+                    return responseOf(VTable, method_name).decode(&reader, self.allocator);
                 },
             };
         }
