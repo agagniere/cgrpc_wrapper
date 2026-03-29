@@ -29,7 +29,7 @@ pub fn juicyMain(gpa: Allocator, io: Io) !void {
     var channel: grpc.Channel = try .initInsecure("localhost:50051");
     defer channel.deinit();
 
-    var queue: grpc.CompletionQueue = .init(.next);
+    var queue: grpc.CompletionQueue = .init(.pluck);
     defer queue.deinit();
 
     const greet_call = channel.createCall(
@@ -52,7 +52,6 @@ pub fn juicyMain(gpa: Allocator, io: Io) !void {
     batch.expectReceivedMessage();
     try batch.start(greet_call);
 
-    queue.shutdown();
     switch (try batch.wait(&queue, .{ .duration = .fromSeconds(2) })) {
         .timeout => std.log.warn("timeout", .{}),
         .failure => |f| std.log.err("{s}", .{f.details}),
@@ -67,5 +66,5 @@ pub fn juicyMain(gpa: Allocator, io: Io) !void {
             }
         },
     }
-    while (queue.next(.{ .duration = .fromSeconds(1) })) |_| {}
+    queue.shutdown();
 }

@@ -192,22 +192,20 @@ pub const Batch = struct {
         return result;
     }
 
-    /// Poll the queue until this batch's completion event arrives, then return the result.
+    /// Wait for this batch's completion event, then return the result.
     pub fn wait(self: *Batch, queue: *CompletionQueue, deadline: Deadline) !Result {
-        while (queue.next(deadline)) |event| {
-            switch (event) {
-                .timeout => return .timeout,
-                .failure => return .{ .failure = .{
-                    .code = self.status.code,
-                    .details = sliceBytes(self.status.details),
-                } },
-                .success => return .{ .success = if (self.is_inbound_expected)
-                    try self.getReceivedMessage()
-                else
-                    null },
-            }
-        }
-        return error.QueueShutdown;
+        const event = queue.pluck(@ptrCast(self), deadline) orelse return error.QueueShutdown;
+        return switch (event) {
+            .timeout => .timeout,
+            .failure => .{ .failure = .{
+                .code = self.status.code,
+                .details = sliceBytes(self.status.details),
+            } },
+            .success => .{ .success = if (self.is_inbound_expected)
+                try self.getReceivedMessage()
+            else
+                null },
+        };
     }
 
     fn sliceBytes(s: t.Slice) []const u8 {

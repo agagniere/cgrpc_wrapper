@@ -47,6 +47,21 @@ pub const CompletionQueue = struct {
         };
     }
 
+    /// Returns null when the queue is shutting down and all events have been drained.
+    /// Unlike next(), waits specifically for the event associated with the given tag,
+    /// allowing other batches' events to remain in the queue undisturbed.
+    pub fn pluck(self: *CompletionQueue, tag: *anyopaque, deadline: Deadline) ?Event {
+        const event = c.grpc_completion_queue_pluck(self.handle, tag, deadline.toGprTimespec(), null);
+        return switch (event.type) {
+            c.GRPC_QUEUE_SHUTDOWN => null,
+            c.GRPC_QUEUE_TIMEOUT => .timeout,
+            else => if (event.success == 0)
+                .{ .failure = @ptrCast(event.tag) }
+            else
+                .{ .success = @ptrCast(event.tag) },
+        };
+    }
+
     /// Begin destruction of a completion queue.
     ///
     /// Once all possible events are drained then next() will start to produce
