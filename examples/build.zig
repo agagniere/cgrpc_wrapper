@@ -10,6 +10,7 @@ pub fn build(b: *std.Build) void {
 
     const grpc = b.dependency("grpc", .{});
     const protobuf = b.dependency("protobuf", .{ .target = target, .optimize = optimize });
+    const otelproto = b.dependency("otelproto", .{});
 
     const run_protoc = RunProtocStep.create(protobuf.builder, target, .{
         .destination_directory = b.path(""),
@@ -60,5 +61,49 @@ pub fn build(b: *std.Build) void {
         build_info.addOption([]const u8, "version", zon.version);
         build_info.addOption([]const u8, "name", "greeter_stub_client");
         stub_mod.addOptions("build_info", build_info);
+    }
+
+    // Generate from OpenTelemetry protobuf definitions
+    const gen_proto = b.step("gen-proto", "Generate zig files from protocol buffer definitions");
+    const run_protoc_otel = RunProtocStep.create(protobuf.builder, target, .{
+        .destination_directory = b.path(""),
+        .source_files = &.{
+            otelproto.path("opentelemetry/proto/logs/v1/logs.proto"),
+            otelproto.path("opentelemetry/proto/collector/logs/v1/logs_service.proto"),
+        },
+        .include_directories = &.{
+            otelproto.path(""),
+        },
+    });
+    gen_proto.dependOn(&run_protoc_otel.step);
+
+    const otel_pipeline_mod = b.addModule("otel_pipeline", .{
+        .root_source_file = b.path("otel_pipeline.zig"),
+        .imports = &.{
+            .{ .name = "protobuf", .module = protobuf.module("protobuf") },
+        },
+    });
+
+    const otel_mod = b.createModule(.{
+        .root_source_file = b.path("otel_logs.zig"),
+        .target = target,
+        .optimize = optimize,
+        .imports = &.{
+            .{ .name = "cgrpc_wrapper", .module = grpc.module("cgrpc_wrapper") },
+            .{ .name = "otel_pipeline", .module = otel_pipeline_mod },
+        },
+    });
+    const otel_exe = b.addExecutable(.{
+        .name = "otel_logs_client",
+        .root_module = otel_mod,
+    });
+    otel_exe.step.dependOn(&run_protoc_otel.step);
+    b.installArtifact(otel_exe);
+
+    { // Build info
+        const build_info = b.addOptions();
+        build_info.addOption([]const u8, "version", zon.version);
+        build_info.addOption([]const u8, "name", "otel_logs_client");
+        otel_mod.addOptions("build_info", build_info);
     }
 }

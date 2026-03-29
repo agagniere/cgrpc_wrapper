@@ -14,5 +14,9 @@
             .hash = "protobuf-3.0.0-0e82amqTKAAp7pNyUmCcPa1CTAimGps-WPcot4Ipc-d4",
         },
         .grpc = .{ .path = ".." },
+        .otelproto = .{
+            .url = "git+https://github.com/open-telemetry/opentelemetry-proto?ref=v1.9.0#a8951735f7801e8adfaec5c0ace9262771cfec6e",
+            .hash = "N-V-__8AAOuRBABBd0ZyohQ4x_ZiMz8XKAoqth7hWzHYZSaC",
+        },
     },
 }
