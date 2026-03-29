@@ -35,7 +35,7 @@ pub fn build(b: *std.Build) void {
     { // Build info
         const build_info = b.addOptions();
         build_info.addOption([]const u8, "version", zon.version);
-        build_info.addOption([]const u8, "name", name);
+        build_info.addOption([]const u8, "name", "greeter_client");
         mod.addOptions("build_info", build_info);
     }
 }

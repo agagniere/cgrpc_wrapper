@@ -50,36 +50,22 @@ pub fn juicyMain(gpa: Allocator, io: Io) !void {
     try batch.addMetadata("zig.version", builtin.zig_version_string);
     try batch.setMessageToSend(encoded_name.written());
     batch.expectReceivedMessage();
-    var status: grpc.client.Batch.Status = .{};
-    try batch.start(greet_call, @ptrCast(&batch), &status);
+    try batch.start(greet_call);
 
     queue.shutdown();
-    while (queue.next(.{ .duration = .fromSeconds(2) })) |event| {
-        switch (event) {
-            .timeout => {
-                std.log.warn("timeout", .{});
-            },
-            .failure => |tag| {
-                std.log.err("Batch failed: {x}", .{@intFromPtr(tag)});
-            },
-            .success => |tag| {
-                std.log.debug("Batch complete: {x}", .{@intFromPtr(tag)});
-                std.debug.assert(&batch == @as(*grpc.client.Batch, @ptrCast(@alignCast(tag))));
-                if (status.status != 0) {
-                    const len = if (status.details.refcount == null) status.details.data.inlined.length else status.details.data.refcounted.length;
-                    const desc = if (status.details.refcount == null) status.details.data.inlined.bytes[0..len] else status.details.data.refcounted.bytes[0..len];
-                    std.log.err("{s}", .{desc});
-                    continue;
-                }
-                if (try batch.getReceivedMessage()) |message| {
-                    defer batch.allocator.free(message);
-                    std.log.debug("Received {} bytes : {x}", .{ message.len, message });
-                    var reader: Io.Reader = .fixed(message);
-                    var response: protocol.HelloReply = try .decode(&reader, gpa);
-                    defer response.deinit(gpa);
-                    std.log.info("Reply : '{s}'", .{response.message});
-                }
-            },
-        }
+    switch (try batch.wait(&queue, .{ .duration = .fromSeconds(2) })) {
+        .timeout => std.log.warn("timeout", .{}),
+        .failure => |f| std.log.err("{s}", .{f.details}),
+        .success => |message| {
+            if (message) |bytes| {
+                defer batch.allocator.free(bytes);
+                std.log.debug("Received {} bytes : {x}", .{ bytes.len, bytes });
+                var reader: Io.Reader = .fixed(bytes);
+                var response: protocol.HelloReply = try .decode(&reader, gpa);
+                defer response.deinit(gpa);
+                std.log.info("Reply : '{s}'", .{response.message});
+            }
+        },
     }
+    while (queue.next(.{ .duration = .fromSeconds(1) })) |_| {}
 }

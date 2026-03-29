@@ -1,6 +1,6 @@
 .{
     .name = .examples,
-    .version = "0.0.1",
+    .version = "0.0.2",
     .minimum_zig_version = "0.16.0-dev.1657+985a3565c",
     .fingerprint = 0x7bd0ad45f44f18a1,
 

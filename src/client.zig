@@ -7,11 +7,13 @@ const make_slice = @import("slice.zig").make_slice;
 
 const Allocator = std.mem.Allocator;
 const Deadline = root.Deadline;
+const CompletionQueue = root.CompletionQueue;
 
 pub const Batch = struct {
     outbound: ?*t.ByteBuffer = null,
     inbound: ?*t.ByteBuffer = null,
     is_inbound_expected: bool = false,
+    status: Status = .{},
     metadata: std.ArrayList(t.Metadata),
     allocator: Allocator,
 
@@ -75,13 +77,22 @@ pub const Batch = struct {
 
     pub const Status = struct {
         description: ?[*:0]u8 = null,
-        status: c.grpc_status_code = c.GRPC_STATUS_OK,
+        code: c.grpc_status_code = c.GRPC_STATUS_OK,
         details: t.Slice = .{},
         leading_metadata: c.grpc_metadata_array = .{},
         trailing_metadata: c.grpc_metadata_array = .{},
     };
 
-    pub fn start(self: *Batch, call: *t.Call, tag: *opaque {}, status: *Status) !void {
+    pub const Result = union(enum) {
+        timeout,
+        /// The call failed. `details` points into gRPC-owned memory, valid until `deinit`.
+        failure: struct { code: c.grpc_status_code, details: []const u8 },
+        /// The call succeeded. `message` is allocated and must be freed by the caller.
+        /// Null if `expectReceivedMessage` was not called on this batch.
+        success: ?[]u8,
+    };
+
+    pub fn start(self: *Batch, call: *t.Call) !void {
         var operations = try std.ArrayList(t.Operation).initCapacity(self.allocator, 6);
         defer operations.deinit(self.allocator);
 
@@ -99,7 +110,7 @@ pub const Batch = struct {
         const second: t.Operation = .{
             .op = c.GRPC_OP_RECV_INITIAL_METADATA,
             .data = .{ .recv_initial_metadata = .{
-                .recv_initial_metadata = &status.leading_metadata,
+                .recv_initial_metadata = &self.status.leading_metadata,
             } },
         };
         const penultimate: t.Operation = .{
@@ -108,10 +119,10 @@ pub const Batch = struct {
         const last: t.Operation = .{
             .op = c.GRPC_OP_RECV_STATUS_ON_CLIENT,
             .data = .{ .recv_status_on_client = .{
-                .error_string = @ptrCast(&status.description),
-                .status = &status.status,
-                .status_details = &status.details,
-                .trailing_metadata = &status.trailing_metadata,
+                .error_string = @ptrCast(&self.status.description),
+                .status = &self.status.code,
+                .status_details = &self.status.details,
+                .trailing_metadata = &self.status.trailing_metadata,
             } },
         };
         try operations.appendSlice(self.allocator, &.{ first, second });
@@ -129,7 +140,7 @@ pub const Batch = struct {
             call,
             operations.items.ptr,
             operations.items.len,
-            @ptrCast(tag),
+            @ptrCast(self),
             null,
         )) {
             c.GRPC_CALL_OK => {},
@@ -179,6 +190,31 @@ pub const Batch = struct {
             written += size;
         }
         return result;
+    }
+
+    /// Poll the queue until this batch's completion event arrives, then return the result.
+    pub fn wait(self: *Batch, queue: *CompletionQueue, deadline: Deadline) !Result {
+        while (queue.next(deadline)) |event| {
+            switch (event) {
+                .timeout => return .timeout,
+                .failure => return .{ .failure = .{
+                    .code = self.status.code,
+                    .details = sliceBytes(self.status.details),
+                } },
+                .success => return .{ .success = if (self.is_inbound_expected)
+                    try self.getReceivedMessage()
+                else
+                    null },
+            }
+        }
+        return error.QueueShutdown;
+    }
+
+    fn sliceBytes(s: t.Slice) []const u8 {
+        if (s.refcount == null)
+            return s.data.inlined.bytes[0..s.data.inlined.length]
+        else
+            return s.data.refcounted.bytes[0..s.data.refcounted.length];
     }
 
     /// Destroy all gRPC buffers and release allocated memory
