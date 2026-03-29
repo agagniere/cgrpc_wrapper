@@ -1,6 +1,6 @@
 .{
     .name = .examples,
-    .version = "0.1.0",
+    .version = "0.1.1",
     .minimum_zig_version = "0.16.0-dev.3006+94355f192",
     .fingerprint = 0x7bd0ad45f44f18a1,
 
@@ -11,7 +11,7 @@
     .dependencies = .{
         .grpc = .{ .path = ".." },
         .protobuf = .{
-            .url = "git+https://github.com/agagniere/zig-protobuf?ref=zig-master#b416c386e6d1b4482666fd1ea4118555347805b4",
+            .url = "git+https://github.com/Arwalk/zig-protobuf?ref=zig-master#7673d62b2909f1ffb687d83a646cded09212b73f",
             .hash = "protobuf-3.0.0-0e82auyUKACQqyLICPhWm6kJoAru5DNP-idAJMP1W94r",
         },
         .otelproto = .{

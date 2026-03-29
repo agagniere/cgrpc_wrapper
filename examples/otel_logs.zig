@@ -29,18 +29,16 @@ pub fn main(init: std.process.Init) !void {
     defer arena.deinit();
 
     const logs = try generateLogs(arena.allocator(), init.io);
-    const request: otelData.LogsCollector.ExportLogsServiceRequest = .{
-        .resource_logs = logs.resource_logs,
-    };
 
-    var reply = try stub.call(.Export, request, .{
-        .deadline = .{ .duration = .fromSeconds(5) },
-        .metadata = &.{
+    var reply = try stub.call(
+        .Export,
+        .{ .resource_logs = logs.resource_logs },
+        .{ .deadline = .{ .duration = .fromSeconds(3) }, .metadata = &.{
             .{ .key = "binary.name", .value = build_info.name },
             .{ .key = "binary.version", .value = build_info.version },
             .{ .key = "zig.version", .value = builtin.zig_version_string },
-        },
-    });
+        } },
+    );
     defer reply.deinit(init.gpa);
 
     if (reply.partial_success) |ps| {

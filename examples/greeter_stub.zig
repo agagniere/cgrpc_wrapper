@@ -18,13 +18,12 @@ pub fn main(init: std.process.Init) !void {
     defer queue.shutdown();
 
     var stub: grpc.Stub(protocol.Greeter) = .{
+        .allocator = init.gpa,
         .channel = &channel,
         .queue = &queue,
-        .allocator = init.gpa,
     };
 
-    const request: protocol.HelloRequest = .{ .name = "Ziguana" };
-    var reply = try stub.call(.SayHello, request, .{
+    var reply = try stub.call(.SayHello, .{ .name = "Ziguana" }, .{
         .deadline = .{ .duration = .fromSeconds(2) },
         .metadata = &.{
             .{ .key = "binary.name", .value = build_info.name },

@@ -235,18 +235,26 @@ pub const Batch = struct {
     }
 };
 
-/// Error set for rawUnaryCall.
-pub const RawCallError = error{
+/// Possible failures of a rawUnaryCall that are not gRPC-level errors.
+pub const RawCallError = Batch.Error || Batch.WaitError;
+
+/// Result of a raw unary gRPC call.
+pub const RawCallResult = union(enum) {
+    /// The call succeeded. `message` is allocated and must be freed by the caller.
+    /// Null if `expectReceivedMessage` was not called on this batch.
+    success: ?[]u8,
     /// The server returned a non-OK gRPC status.
-    GrpcError,
+    /// `details` is allocated and must be freed by the caller.
+    grpc_error: struct { code: c.grpc_status_code, details: []const u8 },
     /// No response received before the deadline expired.
-    Timeout,
-} || Batch.Error || Batch.WaitError;
+    timeout,
+};
 
 /// Perform a raw unary gRPC call with pre-encoded protobuf request bytes.
 ///
 /// Handles the full call lifecycle (create, start, wait, destroy).
-/// Returns the response bytes allocated with `allocator` (caller must free), or null if no message was received.
+/// On success, returns the response bytes allocated with `allocator` (caller must free).
+/// On gRPC-level failure, returns a `grpc_error` with the status code and details (caller must free `details`).
 pub fn rawUnaryCall(
     allocator: Allocator,
     channel: *Channel,
@@ -254,7 +262,7 @@ pub fn rawUnaryCall(
     path: []const u8,
     data: []const u8,
     deadline: Deadline,
-) RawCallError!?[]u8 {
+) RawCallError!RawCallResult {
     const call = channel.createCall(queue, path, deadline);
     defer c.grpc_call_unref(call);
 
@@ -265,8 +273,12 @@ pub fn rawUnaryCall(
     try batch.start(call);
 
     return switch (try batch.wait(queue, deadline)) {
-        .timeout => error.Timeout,
-        .failure => error.GrpcError,
-        .success => |bytes| bytes,
+        .timeout => .timeout,
+        .failure => |f| .{ .grpc_error = .{
+            .code = f.code,
+            // Dupe details: f.details points into gRPC-owned memory freed by batch.deinit().
+            .details = try allocator.dupe(u8, f.details),
+        } },
+        .success => |bytes| .{ .success = bytes },
     };
 }
