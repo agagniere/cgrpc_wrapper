@@ -38,4 +38,27 @@ pub fn build(b: *std.Build) void {
         build_info.addOption([]const u8, "name", "greeter_client");
         mod.addOptions("build_info", build_info);
     }
+
+    const stub_mod = b.createModule(.{
+        .root_source_file = b.path("greeter_stub.zig"),
+        .target = target,
+        .optimize = optimize,
+        .imports = &.{
+            .{ .name = "protobuf", .module = protobuf.module("protobuf") },
+            .{ .name = "cgrpc_wrapper", .module = grpc.module("cgrpc_wrapper") },
+        },
+    });
+    const stub_exe = b.addExecutable(.{
+        .name = "greeter_stub_client",
+        .root_module = stub_mod,
+    });
+    stub_exe.step.dependOn(&run_protoc.step);
+    b.installArtifact(stub_exe);
+
+    { // Build info
+        const build_info = b.addOptions();
+        build_info.addOption([]const u8, "version", zon.version);
+        build_info.addOption([]const u8, "name", "greeter_stub_client");
+        stub_mod.addOptions("build_info", build_info);
+    }
 }

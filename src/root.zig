@@ -6,6 +6,7 @@ pub const Deadline = @import("time.zig").Deadline;
 pub const NextQueue = @import("queue.zig").NextQueue;
 pub const PluckQueue = @import("queue.zig").PluckQueue;
 pub const Channel = @import("channel.zig").Channel;
+pub const Stub = @import("stub.zig").Stub;
 
 pub const init = global.init;
 pub const deinit = global.deinit;
