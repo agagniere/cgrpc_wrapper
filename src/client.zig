@@ -9,6 +9,7 @@ const asZigSlice = @import("slice.zig").asZigSlice;
 const Allocator = std.mem.Allocator;
 const Deadline = root.Deadline;
 const PluckQueue = root.PluckQueue;
+const Channel = root.Channel;
 
 pub const Batch = struct {
     outbound: ?*t.ByteBuffer = null,
@@ -233,3 +234,39 @@ pub const Batch = struct {
         self.metadata.deinit(self.allocator);
     }
 };
+
+/// Error set for rawUnaryCall.
+pub const RawCallError = error{
+    /// The server returned a non-OK gRPC status.
+    GrpcError,
+    /// No response received before the deadline expired.
+    Timeout,
+} || Batch.Error || Batch.WaitError;
+
+/// Perform a raw unary gRPC call with pre-encoded protobuf request bytes.
+///
+/// Handles the full call lifecycle (create, start, wait, destroy).
+/// Returns the response bytes allocated with `allocator` (caller must free), or null if no message was received.
+pub fn rawUnaryCall(
+    allocator: Allocator,
+    channel: *Channel,
+    queue: *PluckQueue,
+    path: []const u8,
+    data: []const u8,
+    deadline: Deadline,
+) RawCallError!?[]u8 {
+    const call = channel.createCall(queue, path, deadline);
+    defer c.grpc_call_unref(call);
+
+    var batch: Batch = .init(allocator);
+    defer batch.deinit();
+    try batch.setMessageToSend(data);
+    batch.expectReceivedMessage();
+    try batch.start(call);
+
+    return switch (try batch.wait(queue, deadline)) {
+        .timeout => error.Timeout,
+        .failure => error.GrpcError,
+        .success => |bytes| bytes,
+    };
+}

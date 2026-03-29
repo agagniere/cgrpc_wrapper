@@ -1,10 +1,11 @@
 const std = @import("std");
 const global = @import("global.zig");
-pub const client = @import("client.zig");
+const queue = @import("queue.zig");
 
+pub const client = @import("client.zig");
 pub const Deadline = @import("time.zig").Deadline;
-pub const NextQueue = @import("queue.zig").NextQueue;
-pub const PluckQueue = @import("queue.zig").PluckQueue;
+pub const NextQueue = queue.NextQueue;
+pub const PluckQueue = queue.PluckQueue;
 pub const Channel = @import("channel.zig").Channel;
 pub const Stub = @import("stub.zig").Stub;
 
