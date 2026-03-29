@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const c = @import("cgrpc");
 const t = @import("types.zig");
 
@@ -15,7 +16,10 @@ fn destroySlice(raw: [*]u8) callconv(.c) void {
     context.*.allocator.free(zig_slice);
 }
 
-/// uses zig's allocator to benefit from leak detection.
+/// In Debug/ReleaseSafe: uses Zig's allocator so leak detection catches unreffed slices.
+/// In ReleaseFast/ReleaseSmall: delegates to gRPC's allocator, which:
+/// - co-allocates data and refcount in a single allocation
+/// - eliminates the Context overhead and custom destructor
 pub fn makeSlice(gpa: Allocator, data: []const u8) !t.Slice {
     if (data.len <= c.GRPC_SLICE_INLINED_SIZE)
         return .{
@@ -29,6 +33,8 @@ pub fn makeSlice(gpa: Allocator, data: []const u8) !t.Slice {
                 },
             } },
         };
+    if (comptime builtin.mode == .ReleaseFast or builtin.mode == .ReleaseSmall)
+        return c.grpc_slice_from_copied_buffer(data.ptr, data.len);
     const size = data.len + @sizeOf(Context);
     const memory = try gpa.alignedAlloc(u8, .of(Context), size);
     const context: *Context = @ptrCast(@alignCast(memory.ptr));
