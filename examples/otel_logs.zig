@@ -74,12 +74,16 @@ fn generateLogs(alloc: Allocator, io: Io) !LogsBatch {
     logs_from_host.resource = .{};
     try logs_from_host.resource.?.attributes.append(alloc, .{ .key = "service.name", .value = .{ .value = .{ .string_value = build_info.name } } });
     try logs_from_host.resource.?.attributes.append(alloc, .{ .key = "service.version", .value = .{ .value = .{ .string_value = build_info.version } } });
+    try logs_from_host.resource.?.attributes.append(alloc, .{ .key = "language", .value = .{ .value = .{ .string_value = "zig" } } });
+    try logs_from_host.resource.?.attributes.append(alloc, .{ .key = "zig.version", .value = .{ .value = .{ .string_value = builtin.zig_version_string } } });
 
     const location = @src();
     var logs_from_instance = try logs_from_host.scope_logs.addOne(alloc);
     logs_from_instance.* = .{};
     logs_from_instance.scope = .{ .name = location.fn_name, .version = build_info.version };
     try logs_from_instance.scope.?.attributes.append(alloc, .{ .key = "file", .value = .{ .value = .{ .string_value = location.file } } });
+    try logs_from_instance.scope.?.attributes.append(alloc, .{ .key = "transport", .value = .{ .value = .{ .string_value = "grpc" } } });
+    try logs_from_instance.scope.?.attributes.append(alloc, .{ .key = "grpc.version", .value = .{ .value = .{ .string_value = std.mem.span(grpc.version()) } } });
 
     for (0..10) |i| {
         const now = std.Io.Clock.real.now(io);
