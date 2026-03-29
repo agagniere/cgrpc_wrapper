@@ -3,7 +3,7 @@ const std = @import("std");
 const root = @import("root.zig");
 const c = @import("cgrpc");
 const t = @import("types.zig");
-const make_slice = @import("slice.zig").make_slice;
+const makeSlice = @import("slice.zig").makeSlice;
 const asZigSlice = @import("slice.zig").asZigSlice;
 
 const Allocator = std.mem.Allocator;
@@ -58,16 +58,16 @@ pub const Batch = struct {
     }
 
     pub fn addMetadata(self: *Batch, key: []const u8, value: []const u8) !void {
-        const k: t.Slice = try make_slice(self.allocator, key);
+        const k: t.Slice = try makeSlice(self.allocator, key);
         errdefer c.grpc_slice_unref(k);
-        const v: t.Slice = try make_slice(self.allocator, value);
+        const v: t.Slice = try makeSlice(self.allocator, value);
         errdefer c.grpc_slice_unref(v);
 
         try self.metadata.append(self.allocator, .{ .key = k, .value = v });
     }
 
     pub fn setMessageToSend(self: *Batch, message: []const u8) !void {
-        var slice: t.Slice = try make_slice(self.allocator, message);
+        var slice: t.Slice = try makeSlice(self.allocator, message);
         defer c.grpc_slice_unref(slice);
         self.outbound = c.grpc_raw_byte_buffer_create((&slice)[0..1], 1);
     }

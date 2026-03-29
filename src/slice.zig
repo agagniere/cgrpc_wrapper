@@ -9,14 +9,14 @@ const Context = struct {
     allocated_size: usize,
 };
 
-fn destroy_slice(raw: [*]u8) callconv(.c) void {
+fn destroySlice(raw: [*]u8) callconv(.c) void {
     const context: *Context = @ptrCast(@alignCast(raw));
     const zig_slice: []align(@alignOf(Context)) u8 = @alignCast(raw[0..context.*.allocated_size]);
     context.*.allocator.free(zig_slice);
 }
 
 /// uses zig's allocator to benefit from leak detection.
-pub fn make_slice(gpa: Allocator, data: []const u8) !t.Slice {
+pub fn makeSlice(gpa: Allocator, data: []const u8) !t.Slice {
     if (data.len <= c.GRPC_SLICE_INLINED_SIZE)
         return .{
             .refcount = null,
@@ -35,7 +35,7 @@ pub fn make_slice(gpa: Allocator, data: []const u8) !t.Slice {
     context.*.allocator = gpa;
     context.*.allocated_size = size;
     @memcpy(memory[@sizeOf(Context)..], data);
-    return c.grpc_slice_new_with_user_data(memory[@sizeOf(Context)..].ptr, data.len, @ptrCast(&destroy_slice), memory.ptr);
+    return c.grpc_slice_new_with_user_data(memory[@sizeOf(Context)..].ptr, data.len, @ptrCast(&destroySlice), memory.ptr);
 }
 
 /// Return a Zig slice pointing into the existing grpc_slice memory. No allocation.
@@ -54,7 +54,7 @@ test {
         "At regina gravi iamdudum saucia cura vulnus alit venis et caeco carpitur igni.",
     };
     for (cases) |case| {
-        const a = try make_slice(std.testing.allocator, case);
+        const a = try makeSlice(std.testing.allocator, case);
         defer c.grpc_slice_unref(a);
         const b = c.grpc_slice_from_static_buffer(case.ptr, case.len);
         defer c.grpc_slice_unref(b);
