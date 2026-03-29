@@ -9,11 +9,11 @@
     },
 
     .dependencies = .{
-        .protobuf = .{
-            .url = "git+https://github.com/Arwalk/zig-protobuf?ref=zig-master#fda6bab6e329cfa4e8b84b3d329213de0a0b4723",
-            .hash = "protobuf-3.0.0-0e82amqTKAAp7pNyUmCcPa1CTAimGps-WPcot4Ipc-d4",
-        },
         .grpc = .{ .path = ".." },
+        .protobuf = .{
+            .url = "git+https://github.com/agagniere/zig-protobuf?ref=zig-master#b416c386e6d1b4482666fd1ea4118555347805b4",
+            .hash = "protobuf-3.0.0-0e82auyUKACQqyLICPhWm6kJoAru5DNP-idAJMP1W94r",
+        },
         .otelproto = .{
             .url = "git+https://github.com/open-telemetry/opentelemetry-proto?ref=v1.9.0#a8951735f7801e8adfaec5c0ace9262771cfec6e",
             .hash = "N-V-__8AAOuRBABBd0ZyohQ4x_ZiMz8XKAoqth7hWzHYZSaC",
