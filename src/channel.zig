@@ -5,8 +5,6 @@ const c = @import("cgrpc");
 const t = @import("types.zig");
 
 const Deadline = root.Deadline;
-const CompletionQueue = root.CompletionQueue;
-
 pub const Channel = struct {
     credentials: *t.ChannelCredentials,
     handle: *t.Channel,
@@ -23,7 +21,7 @@ pub const Channel = struct {
 
     pub fn createCall(
         self: *Channel,
-        queue: *CompletionQueue,
+        queue: anytype,
         method: []const u8,
         deadline: Deadline,
     ) *t.Call {

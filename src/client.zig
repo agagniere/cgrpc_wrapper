@@ -7,7 +7,7 @@ const make_slice = @import("slice.zig").make_slice;
 
 const Allocator = std.mem.Allocator;
 const Deadline = root.Deadline;
-const CompletionQueue = root.CompletionQueue;
+const PluckQueue = root.PluckQueue;
 
 pub const Batch = struct {
     outbound: ?*t.ByteBuffer = null,
@@ -193,7 +193,7 @@ pub const Batch = struct {
     }
 
     /// Wait for this batch's completion event, then return the result.
-    pub fn wait(self: *Batch, queue: *CompletionQueue, deadline: Deadline) !Result {
+    pub fn wait(self: *Batch, queue: *PluckQueue, deadline: Deadline) !Result {
         const event = queue.pluck(@ptrCast(self), deadline) orelse return error.QueueShutdown;
         return switch (event) {
             .timeout => .timeout,

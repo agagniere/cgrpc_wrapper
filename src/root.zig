@@ -3,7 +3,8 @@ const global = @import("global.zig");
 pub const client = @import("client.zig");
 
 pub const Deadline = @import("time.zig").Deadline;
-pub const CompletionQueue = @import("queue.zig").CompletionQueue;
+pub const NextQueue = @import("queue.zig").NextQueue;
+pub const PluckQueue = @import("queue.zig").PluckQueue;
 pub const Channel = @import("channel.zig").Channel;
 
 pub const init = global.init;
