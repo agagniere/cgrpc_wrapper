@@ -9,7 +9,12 @@ pub const Channel = struct {
     credentials: *t.ChannelCredentials,
     handle: *t.Channel,
 
-    pub fn initInsecure(target: [*:0]const u8) !Channel {
+    pub const InitError = error{
+        /// gRPC failed to create a channel to the given target.
+        UnableToCreateChannel,
+    };
+
+    pub fn initInsecure(target: [*:0]const u8) InitError!Channel {
         const creds = c.grpc_insecure_credentials_create().?;
         errdefer c.grpc_channel_credentials_release(creds);
 

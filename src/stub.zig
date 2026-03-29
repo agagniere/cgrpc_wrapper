@@ -8,6 +8,16 @@ const Channel = root.Channel;
 const Deadline = root.Deadline;
 const PluckQueue = root.PluckQueue;
 
+/// Returns the error set of a type's encode method.
+fn encodeError(comptime Request: type) type {
+    return @typeInfo(@typeInfo(@TypeOf(Request.encode)).@"fn".return_type.?).error_union.error_set;
+}
+
+/// Returns the error set of a type's decode method.
+fn decodeError(comptime Response: type) type {
+    return @typeInfo(@typeInfo(@TypeOf(Response.decode)).@"fn".return_type.?).error_union.error_set;
+}
+
 /// Returns the type of the request parameter of a VTable method.
 fn requestOf(comptime VTable: type, comptime method: []const u8) type {
     for (@typeInfo(VTable).@"struct".fields) |f| {
@@ -58,12 +68,24 @@ pub fn Stub(comptime ServiceFn: anytype) type {
         /// Enum of available RPC methods, derived from the service definition.
         pub const Method = std.meta.FieldEnum(VTable);
 
+        /// High-level gRPC call outcomes.
         pub const Error = error{
+            /// No response received before the deadline expired.
             Timeout,
+            /// The server returned a non-OK status.
             GrpcError,
+            /// The call succeeded but no response message was present.
             NoResponse,
+            /// The completion queue was shut down before the call completed.
             QueueShutdown,
         };
+
+        /// Full error set for call(), including transport, encoding and decoding errors.
+        pub fn CallError(comptime method: Method) type {
+            const Request = requestOf(VTable, @tagName(method));
+            const Response = responseOf(VTable, @tagName(method));
+            return Error || client.Batch.Error || client.Batch.WaitError || encodeError(Request) || decodeError(Response);
+        }
 
         pub const Metadata = struct {
             key: []const u8,
@@ -83,7 +105,7 @@ pub fn Stub(comptime ServiceFn: anytype) type {
             request: requestOf(VTable, @tagName(method)),
             deadline: Deadline,
             options: CallOptions,
-        ) (Error || error{OutOfMemory} || anyerror)!responseOf(VTable, @tagName(method)) {
+        ) CallError(method)!responseOf(VTable, @tagName(method)) {
             const method_name = @tagName(method);
             const path = "/" ++ VTable.package ++ "." ++ VTable.service_name ++ "/" ++ method_name;
 

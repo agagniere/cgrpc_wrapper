@@ -57,7 +57,20 @@ pub const Batch = struct {
         return .{ .allocator = gpa, .metadata = .empty };
     }
 
-    pub fn addMetadata(self: *Batch, key: []const u8, value: []const u8) !void {
+    /// Errors that may occur when reading back a received message.
+    pub const RecvError = error{
+        /// expectReceivedMessage was not called before this batch completed.
+        NoInboundMessageExpected,
+        OutOfMemory,
+    };
+
+    /// Errors that may occur while waiting for a batch to complete.
+    pub const WaitError = RecvError || error{
+        /// The completion queue was shut down before this batch's event was received.
+        QueueShutdown,
+    };
+
+    pub fn addMetadata(self: *Batch, key: []const u8, value: []const u8) error{OutOfMemory}!void {
         const k: t.Slice = try makeSlice(self.allocator, key);
         errdefer c.grpc_slice_unref(k);
         const v: t.Slice = try makeSlice(self.allocator, value);
@@ -66,7 +79,7 @@ pub const Batch = struct {
         try self.metadata.append(self.allocator, .{ .key = k, .value = v });
     }
 
-    pub fn setMessageToSend(self: *Batch, message: []const u8) !void {
+    pub fn setMessageToSend(self: *Batch, message: []const u8) error{OutOfMemory}!void {
         var slice: t.Slice = try makeSlice(self.allocator, message);
         defer c.grpc_slice_unref(slice);
         self.outbound = c.grpc_raw_byte_buffer_create((&slice)[0..1], 1);
@@ -93,7 +106,7 @@ pub const Batch = struct {
         success: ?[]u8,
     };
 
-    pub fn start(self: *Batch, call: *t.Call) !void {
+    pub fn start(self: *Batch, call: *t.Call) (Error || error{OutOfMemory})!void {
         var operations = try std.ArrayList(t.Operation).initCapacity(self.allocator, 6);
         defer operations.deinit(self.allocator);
 
@@ -168,7 +181,7 @@ pub const Batch = struct {
     /// Returned slice must be freed by the caller.
     /// An error is returned if no inbound message is expected.
     /// null is returned if no message was received.
-    pub fn getReceivedMessage(self: *Batch) !?[]u8 {
+    pub fn getReceivedMessage(self: *Batch) RecvError!?[]u8 {
         if (!self.is_inbound_expected) return error.NoInboundMessageExpected;
         const buffer = self.inbound orelse return null;
         var reader: c.grpc_byte_buffer_reader = undefined;
@@ -194,7 +207,7 @@ pub const Batch = struct {
     }
 
     /// Wait for this batch's completion event, then return the result.
-    pub fn wait(self: *Batch, queue: *PluckQueue, deadline: Deadline) !Result {
+    pub fn wait(self: *Batch, queue: *PluckQueue, deadline: Deadline) WaitError!Result {
         const event = queue.pluck(@ptrCast(self), deadline) orelse return error.QueueShutdown;
         return switch (event) {
             .timeout => .timeout,
