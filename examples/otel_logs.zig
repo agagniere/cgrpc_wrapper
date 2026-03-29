@@ -8,19 +8,7 @@ const Allocator = std.mem.Allocator;
 const Io = std.Io;
 const LogsBatch = otelData.Logs.LogsData;
 
-pub fn main() !void {
-    var debug_allocator: std.heap.DebugAllocator(.{}) = .init;
-    defer std.debug.assert(debug_allocator.deinit() == .ok);
-    const gpa = debug_allocator.allocator();
-
-    var threaded: Io.Threaded = .init(gpa, .{});
-    defer threaded.deinit();
-    const io = threaded.io();
-
-    return juicyMain(gpa, io);
-}
-
-pub fn juicyMain(gpa: Allocator, io: Io) !void {
+pub fn main(init: std.process.Init) !void {
     grpc.init();
     defer grpc.deinit();
     std.log.info("Using gRPC ({s} Remote Procedure Call) version {s}", .{ grpc.gStandsFor(), grpc.version() });
@@ -34,13 +22,13 @@ pub fn juicyMain(gpa: Allocator, io: Io) !void {
     var stub: grpc.Stub(otelData.LogsCollector.LogsService) = .{
         .channel = &channel,
         .queue = &queue,
-        .allocator = gpa,
+        .allocator = init.gpa,
     };
 
-    var arena = std.heap.ArenaAllocator.init(gpa);
+    var arena = std.heap.ArenaAllocator.init(init.gpa);
     defer arena.deinit();
 
-    const logs = try generateLogs(arena.allocator(), io);
+    const logs = try generateLogs(arena.allocator(), init.io);
     const request: otelData.LogsCollector.ExportLogsServiceRequest = .{
         .resource_logs = logs.resource_logs,
     };
@@ -52,7 +40,7 @@ pub fn juicyMain(gpa: Allocator, io: Io) !void {
             .{ .key = "zig.version", .value = builtin.zig_version_string },
         },
     });
-    defer reply.deinit(gpa);
+    defer reply.deinit(init.gpa);
 
     if (reply.partial_success) |ps| {
         if (ps.rejected_log_records > 0) {

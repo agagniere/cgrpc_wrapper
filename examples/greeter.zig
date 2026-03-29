@@ -13,15 +13,6 @@ pub fn main() !void {
     defer std.debug.assert(debug_allocator.deinit() == .ok);
     const gpa = debug_allocator.allocator();
 
-    var threaded: Io.Threaded = .init(gpa, .{});
-    defer threaded.deinit();
-    const io = threaded.io();
-
-    return juicyMain(gpa, io);
-}
-
-pub fn juicyMain(gpa: Allocator, io: Io) !void {
-    _ = io;
     grpc.init();
     defer grpc.deinit();
     std.log.info("Using gRPC ({s} Remote Procedure Call) version {s}", .{ grpc.gStandsFor(), grpc.version() });
@@ -31,6 +22,7 @@ pub fn juicyMain(gpa: Allocator, io: Io) !void {
 
     var queue: grpc.PluckQueue = .init();
     defer queue.deinit();
+    defer queue.shutdown();
 
     const greet_call = channel.createCall(
         &queue,
@@ -66,5 +58,4 @@ pub fn juicyMain(gpa: Allocator, io: Io) !void {
             }
         },
     }
-    queue.shutdown();
 }

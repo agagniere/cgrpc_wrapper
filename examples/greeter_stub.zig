@@ -5,23 +5,7 @@ const grpc = @import("cgrpc_wrapper");
 const protobuf = @import("protobuf");
 const protocol = @import("helloworld.pb.zig");
 
-const Allocator = std.mem.Allocator;
-const Io = std.Io;
-
-pub fn main() !void {
-    var debug_allocator: std.heap.DebugAllocator(.{}) = .init;
-    defer std.debug.assert(debug_allocator.deinit() == .ok);
-    const gpa = debug_allocator.allocator();
-
-    var threaded: Io.Threaded = .init(gpa, .{});
-    defer threaded.deinit();
-    const io = threaded.io();
-
-    return juicyMain(gpa, io);
-}
-
-pub fn juicyMain(gpa: Allocator, io: Io) !void {
-    _ = io;
+pub fn main(init: std.process.Init) !void {
     grpc.init();
     defer grpc.deinit();
     std.log.info("Using gRPC ({s} Remote Procedure Call) version {s}", .{ grpc.gStandsFor(), grpc.version() });
@@ -31,11 +15,12 @@ pub fn juicyMain(gpa: Allocator, io: Io) !void {
 
     var queue: grpc.PluckQueue = .init();
     defer queue.deinit();
+    defer queue.shutdown();
 
     var stub: grpc.Stub(protocol.Greeter) = .{
         .channel = &channel,
         .queue = &queue,
-        .allocator = gpa,
+        .allocator = init.gpa,
     };
 
     const request: protocol.HelloRequest = .{ .name = "Ziguana" };
@@ -46,9 +31,7 @@ pub fn juicyMain(gpa: Allocator, io: Io) !void {
             .{ .key = "zig.version", .value = builtin.zig_version_string },
         },
     });
-    defer reply.deinit(gpa);
+    defer reply.deinit(init.gpa);
 
     std.log.info("Reply : '{s}'", .{reply.message});
-
-    queue.shutdown();
 }
