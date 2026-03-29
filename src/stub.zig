@@ -62,6 +62,15 @@ pub fn Stub(comptime ServiceFn: anytype) type {
             QueueShutdown,
         };
 
+        pub const Metadata = struct {
+            key: []const u8,
+            value: []const u8,
+        };
+
+        pub const CallOptions = struct {
+            metadata: []const Metadata = &.{},
+        };
+
         /// Perform a unary RPC call.
         ///
         /// The returned value is allocated using `self.allocator` and must be freed by the caller.
@@ -70,6 +79,7 @@ pub fn Stub(comptime ServiceFn: anytype) type {
             comptime method: []const u8,
             request: requestOf(VTable, method),
             deadline: Deadline,
+            options: CallOptions,
         ) (Error || error{OutOfMemory} || anyerror)!responseOf(VTable, method) {
             const path = "/" ++ VTable.package ++ "." ++ VTable.service_name ++ "/" ++ method;
 
@@ -86,6 +96,7 @@ pub fn Stub(comptime ServiceFn: anytype) type {
 
             var batch: client.Batch = .init(arena_alloc);
             defer batch.deinit();
+            for (options.metadata) |m| try batch.addMetadata(m.key, m.value);
             try batch.setMessageToSend(encoded.written());
             batch.expectReceivedMessage();
             try batch.start(grpc_call);

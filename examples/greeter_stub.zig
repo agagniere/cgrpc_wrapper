@@ -39,7 +39,13 @@ pub fn juicyMain(gpa: Allocator, io: Io) !void {
     };
 
     const request: protocol.HelloRequest = .{ .name = "Ziguana" };
-    var reply = try stub.call("SayHello", request, .{ .duration = .fromSeconds(2) });
+    var reply = try stub.call("SayHello", request, .{ .duration = .fromSeconds(2) }, .{
+        .metadata = &.{
+            .{ .key = "binary.name", .value = build_info.name },
+            .{ .key = "binary.version", .value = build_info.version },
+            .{ .key = "zig.version", .value = builtin.zig_version_string },
+        },
+    });
     defer reply.deinit(gpa);
 
     std.log.info("Reply : '{s}'", .{reply.message});
