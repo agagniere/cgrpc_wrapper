@@ -5,6 +5,8 @@ pub const client = @import("client.zig");
 pub const Deadline = @import("time.zig").Deadline;
 pub const NextQueue = @import("queue.zig").NextQueue;
 pub const PluckQueue = @import("queue.zig").PluckQueue;
+pub const CallbackQueue = @import("queue.zig").CallbackQueue;
+pub const QueueFunctor = @import("queue.zig").Functor;
 pub const Channel = @import("channel.zig").Channel;
 pub const Stub = @import("stub.zig").Stub;
 

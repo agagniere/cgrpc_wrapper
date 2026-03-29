@@ -4,6 +4,11 @@ const root = @import("root.zig");
 
 const Deadline = root.Deadline;
 
+/// Tag and callback for use with CallbackQueue.
+/// Set `functor_run` to your handler before passing to batch.start.
+/// The second argument to `functor_run` is 1 on success, 0 on failure.
+pub const Functor = c.grpc_completion_queue_functor;
+
 /// The result of an operation
 ///
 /// The value of .failure and .success is the tag passed to grpc_call_start_batch etc to start this operation.
@@ -12,6 +17,26 @@ pub const Event = union(enum) {
     timeout: void,
     failure: *opaque {},
     success: *opaque {},
+};
+
+/// Completion queue that invokes a Functor callback on each completed operation.
+/// No polling required: functor_run is called directly when a batch completes.
+/// The tag passed to batch.start must be a *Functor.
+pub const CallbackQueue = struct {
+    handle: *t.CompletionQueue,
+
+    /// shutdown_callback is called when the queue finishes shutting down. May be null.
+    pub fn init(shutdown_callback: ?*Functor) CallbackQueue {
+        return .{ .handle = c.grpc_completion_queue_create_for_callback(shutdown_callback, null).? };
+    }
+
+    pub fn shutdown(self: *CallbackQueue) void {
+        c.grpc_completion_queue_shutdown(self.handle);
+    }
+
+    pub fn deinit(self: *CallbackQueue) void {
+        c.grpc_completion_queue_destroy(self.handle);
+    }
 };
 
 /// Completion queue where events are popped using next().
