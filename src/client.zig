@@ -4,6 +4,7 @@ const root = @import("root.zig");
 const c = @import("cgrpc");
 const t = @import("types.zig");
 const make_slice = @import("slice.zig").make_slice;
+const asZigSlice = @import("slice.zig").asZigSlice;
 
 const Allocator = std.mem.Allocator;
 const Deadline = root.Deadline;
@@ -199,20 +200,13 @@ pub const Batch = struct {
             .timeout => .timeout,
             .failure => .{ .failure = .{
                 .code = self.status.code,
-                .details = sliceBytes(self.status.details),
+                .details = asZigSlice(self.status.details),
             } },
             .success => .{ .success = if (self.is_inbound_expected)
                 try self.getReceivedMessage()
             else
                 null },
         };
-    }
-
-    fn sliceBytes(s: t.Slice) []const u8 {
-        if (s.refcount == null)
-            return s.data.inlined.bytes[0..s.data.inlined.length]
-        else
-            return s.data.refcounted.bytes[0..s.data.refcounted.length];
     }
 
     /// Destroy all gRPC buffers and release allocated memory

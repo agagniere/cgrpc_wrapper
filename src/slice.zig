@@ -38,6 +38,14 @@ pub fn make_slice(gpa: Allocator, data: []const u8) !t.Slice {
     return c.grpc_slice_new_with_user_data(memory[@sizeOf(Context)..].ptr, data.len, @ptrCast(&destroy_slice), memory.ptr);
 }
 
+/// Return a Zig slice pointing into the existing grpc_slice memory. No allocation.
+pub fn asZigSlice(s: t.Slice) []const u8 {
+    if (s.refcount == null)
+        return s.data.inlined.bytes[0..s.data.inlined.length]
+    else
+        return s.data.refcounted.bytes[0..s.data.refcounted.length];
+}
+
 test {
     const cases: []const []const u8 = &.{
         "Short",
