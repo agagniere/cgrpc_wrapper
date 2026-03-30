@@ -15,7 +15,8 @@ pub const Event = union(enum) {
 };
 
 /// Completion queue where events are popped using next().
-/// Incompatible with pluck().
+///
+/// Best used with a single waiting loop that dispatches all batches
 pub const NextQueue = struct {
     handle: *t.CompletionQueue,
 
@@ -59,7 +60,8 @@ pub const NextQueue = struct {
 };
 
 /// Completion queue where events are popped using pluck().
-/// Incompatible with next().
+///
+/// Best used when each batch will wait on its own events
 pub const PluckQueue = struct {
     handle: *t.CompletionQueue,
 

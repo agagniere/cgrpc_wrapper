@@ -10,6 +10,7 @@ const Allocator = std.mem.Allocator;
 const Deadline = root.Deadline;
 const PluckQueue = root.PluckQueue;
 const Channel = root.Channel;
+const errors = root.errors;
 
 pub const Batch = struct {
     outbound: ?*t.ByteBuffer = null,
@@ -19,40 +20,8 @@ pub const Batch = struct {
     metadata: std.ArrayList(t.Metadata),
     allocator: Allocator,
 
-    /// Possible failures of a grpc call.
-    /// Receiving any value listed here is an indication of a bug in the caller.
-    pub const Error = error{
-        /// Something failed, we don't know what
-        unknown,
-        /// This method is not available on the server
-        not_on_server,
-        /// This method is not available on the client
-        not_on_client,
-        /// This method must be called before server_accept
-        already_accepted,
-        /// this method must be called before invoke
-        already_invoked,
-        /// This method must be called after invoke
-        not_invoked,
-        /// This call is already finished (writes_done or write_status has already been called)
-        already_finished,
-        /// There is already an outstanding read/write operation on the call
-        too_many_operations,
-        /// The flags value was illegal for this call
-        invalid_flags,
-        /// Invalid metadata was passed to this call
-        invalid_metadata,
-        /// Invalid message was passed to this call
-        invalid_message,
-        /// Completion queue for notification has not been registered with the server
-        not_server_completion_queue,
-        /// This batch of operations leads to more operations than allowed
-        batch_too_big,
-        /// Payload type requested is not the type registered
-        payload_type_mismatch,
-        /// Completion queue has been shutdown
-        completion_queue_shutdown,
-    };
+    /// Possible failures from incorrect API usage; indicate a bug in the caller.
+    pub const Error = errors.UsageError;
 
     pub fn init(gpa: Allocator) Batch {
         return .{ .allocator = gpa, .metadata = .empty };
@@ -161,21 +130,21 @@ pub const Batch = struct {
             null,
         )) {
             c.GRPC_CALL_OK => {},
-            c.GRPC_CALL_ERROR_NOT_ON_SERVER => Error.not_on_server,
-            c.GRPC_CALL_ERROR_NOT_ON_CLIENT => Error.not_on_client,
-            c.GRPC_CALL_ERROR_ALREADY_ACCEPTED => Error.already_accepted,
-            c.GRPC_CALL_ERROR_ALREADY_INVOKED => Error.already_invoked,
-            c.GRPC_CALL_ERROR_NOT_INVOKED => Error.not_invoked,
-            c.GRPC_CALL_ERROR_ALREADY_FINISHED => Error.already_finished,
-            c.GRPC_CALL_ERROR_TOO_MANY_OPERATIONS => Error.too_many_operations,
-            c.GRPC_CALL_ERROR_INVALID_FLAGS => Error.invalid_flags,
-            c.GRPC_CALL_ERROR_INVALID_METADATA => Error.invalid_metadata,
-            c.GRPC_CALL_ERROR_INVALID_MESSAGE => Error.invalid_message,
-            c.GRPC_CALL_ERROR_NOT_SERVER_COMPLETION_QUEUE => Error.not_server_completion_queue,
-            c.GRPC_CALL_ERROR_BATCH_TOO_BIG => Error.batch_too_big,
-            c.GRPC_CALL_ERROR_PAYLOAD_TYPE_MISMATCH => Error.payload_type_mismatch,
-            c.GRPC_CALL_ERROR_COMPLETION_QUEUE_SHUTDOWN => Error.completion_queue_shutdown,
-            else => Error.unknown, // GRPC_CALL_ERROR
+            c.GRPC_CALL_ERROR_NOT_ON_SERVER => Error.NotOnServer,
+            c.GRPC_CALL_ERROR_NOT_ON_CLIENT => Error.NotOnClient,
+            c.GRPC_CALL_ERROR_ALREADY_ACCEPTED => Error.AlreadyAccepted,
+            c.GRPC_CALL_ERROR_ALREADY_INVOKED => Error.AlreadyInvoked,
+            c.GRPC_CALL_ERROR_NOT_INVOKED => Error.NotInvoked,
+            c.GRPC_CALL_ERROR_ALREADY_FINISHED => Error.AlreadyFinished,
+            c.GRPC_CALL_ERROR_TOO_MANY_OPERATIONS => Error.TooManyOperations,
+            c.GRPC_CALL_ERROR_INVALID_FLAGS => Error.InvalidFlags,
+            c.GRPC_CALL_ERROR_INVALID_METADATA => Error.InvalidMetadata,
+            c.GRPC_CALL_ERROR_INVALID_MESSAGE => Error.InvalidMessage,
+            c.GRPC_CALL_ERROR_NOT_SERVER_COMPLETION_QUEUE => Error.NotServerCompletionQueue,
+            c.GRPC_CALL_ERROR_BATCH_TOO_BIG => Error.BatchTooBig,
+            c.GRPC_CALL_ERROR_PAYLOAD_TYPE_MISMATCH => Error.PayloadTypeMismatch,
+            c.GRPC_CALL_ERROR_COMPLETION_QUEUE_SHUTDOWN => Error.CompletionQueueShutdown,
+            else => Error.Unknown, // GRPC_CALL_ERROR
         };
     }
 

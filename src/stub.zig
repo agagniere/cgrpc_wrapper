@@ -7,6 +7,7 @@ const Allocator = std.mem.Allocator;
 const Channel = root.Channel;
 const Deadline = root.Deadline;
 const PluckQueue = root.PluckQueue;
+const errors = root.errors;
 
 /// Returns the error set of a type's encode method.
 fn encodeError(comptime Request: type) type {
@@ -68,17 +69,8 @@ pub fn Stub(comptime ServiceFn: anytype) type {
         /// Enum of available RPC methods, derived from the service definition.
         pub const Method = std.meta.FieldEnum(VTable);
 
-        /// High-level gRPC call outcomes.
-        pub const Error = error{
-            /// No response received before the deadline expired.
-            Timeout,
-            /// The server returned a non-OK status.
-            GrpcError,
-            /// The call succeeded but no response message was present.
-            NoResponse,
-            /// The completion queue was shut down before the call completed.
-            QueueShutdown,
-        };
+        /// High-level gRPC call outcomes: transport-level failures and server status codes.
+        pub const Error = errors.TransportError || errors.StatusError;
 
         /// Full error set for call(), including transport, encoding and decoding errors.
         pub fn CallError(comptime method: Method) type {
@@ -129,10 +121,28 @@ pub fn Stub(comptime ServiceFn: anytype) type {
 
             return switch (try batch.wait(self.queue, options.deadline)) {
                 .timeout => Error.Timeout,
-                .operation_failed => Error.GrpcError,
+                .operation_failed => Error.OperationFailed,
                 .failure => |f| {
                     std.log.err("gRPC error {d}: {s}", .{ f.code, f.details });
-                    return Error.GrpcError;
+                    return switch (f.code) {
+                        c.GRPC_STATUS_CANCELLED => error.Cancelled,
+                        c.GRPC_STATUS_UNKNOWN => error.Unknown,
+                        c.GRPC_STATUS_INVALID_ARGUMENT => error.InvalidArgument,
+                        c.GRPC_STATUS_DEADLINE_EXCEEDED => error.DeadlineExceeded,
+                        c.GRPC_STATUS_NOT_FOUND => error.NotFound,
+                        c.GRPC_STATUS_ALREADY_EXISTS => error.AlreadyExists,
+                        c.GRPC_STATUS_PERMISSION_DENIED => error.PermissionDenied,
+                        c.GRPC_STATUS_RESOURCE_EXHAUSTED => error.ResourceExhausted,
+                        c.GRPC_STATUS_FAILED_PRECONDITION => error.FailedPrecondition,
+                        c.GRPC_STATUS_ABORTED => error.Aborted,
+                        c.GRPC_STATUS_OUT_OF_RANGE => error.OutOfRange,
+                        c.GRPC_STATUS_UNIMPLEMENTED => error.Unimplemented,
+                        c.GRPC_STATUS_INTERNAL => error.Internal,
+                        c.GRPC_STATUS_UNAVAILABLE => error.Unavailable,
+                        c.GRPC_STATUS_DATA_LOSS => error.DataLoss,
+                        c.GRPC_STATUS_UNAUTHENTICATED => error.Unauthenticated,
+                        else => error.GrpcError,
+                    };
                 },
                 .success => |bytes| {
                     const b = bytes orelse return Error.NoResponse;

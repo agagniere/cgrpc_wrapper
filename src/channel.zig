@@ -5,6 +5,7 @@ const c = @import("cgrpc");
 const t = @import("types.zig");
 
 const Deadline = root.Deadline;
+
 pub const Channel = struct {
     credentials: *t.ChannelCredentials,
     handle: *t.Channel,
