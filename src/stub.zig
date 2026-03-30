@@ -129,6 +129,7 @@ pub fn Stub(comptime ServiceFn: anytype) type {
 
             return switch (try batch.wait(self.queue, options.deadline)) {
                 .timeout => Error.Timeout,
+                .operation_failed => Error.GrpcError,
                 .failure => |f| {
                     std.log.err("gRPC error {d}: {s}", .{ f.code, f.details });
                     return Error.GrpcError;

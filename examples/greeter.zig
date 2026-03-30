@@ -46,7 +46,8 @@ pub fn main() !void {
 
     switch (try batch.wait(&queue, .{ .duration = .fromSeconds(2) })) {
         .timeout => std.log.warn("timeout", .{}),
-        .failure => |f| std.log.err("{s}", .{f.details}),
+        .operation_failed => std.log.err("operation failed", .{}),
+        .failure => |f| std.log.err("gRPC eror {}: {s}", .{ f.code, f.details }),
         .success => |message| {
             if (message) |bytes| {
                 defer batch.allocator.free(bytes);

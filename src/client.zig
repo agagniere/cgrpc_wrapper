@@ -100,7 +100,9 @@ pub const Batch = struct {
 
     pub const Result = union(enum) {
         timeout,
-        /// The call failed. `details` points into gRPC-owned memory, valid until `deinit`.
+        /// The batch operation failed (event.success == 0). Status fields are not populated.
+        operation_failed,
+        /// A non-OK status code was received. `details` points into gRPC-owned memory, valid until `deinit`.
         failure: struct { code: c.grpc_status_code, details: []const u8 },
         /// The call succeeded. `message` is allocated and must be freed by the caller.
         /// Null if `expectReceivedMessage` was not called on this batch.
@@ -212,14 +214,17 @@ pub const Batch = struct {
         const event = queue.pluck(@ptrCast(self), deadline) orelse return error.QueueShutdown;
         return switch (event) {
             .timeout => .timeout,
-            .failure => .{ .failure = .{
-                .code = self.status.code,
-                .details = asZigSlice(self.status.details),
-            } },
-            .success => .{ .success = if (self.is_inbound_expected)
-                try self.getReceivedMessage()
+            .failure => .operation_failed,
+            .success => if (self.status.code != c.GRPC_STATUS_OK)
+                .{ .failure = .{
+                    .code = self.status.code,
+                    .details = asZigSlice(self.status.details),
+                } }
             else
-                null },
+                .{ .success = if (self.is_inbound_expected)
+                    try self.getReceivedMessage()
+                else
+                    null },
         };
     }
 
@@ -243,9 +248,11 @@ pub const RawCallResult = union(enum) {
     /// The call succeeded. `message` is allocated and must be freed by the caller.
     /// Null if `expectReceivedMessage` was not called on this batch.
     success: ?[]u8,
-    /// The server returned a non-OK gRPC status.
+    /// A non-OK status code was received.
     /// `details` is allocated and must be freed by the caller.
     grpc_error: struct { code: c.grpc_status_code, details: []const u8 },
+    /// The batch operation failed (event.success == 0). No status info available.
+    operation_failed,
     /// No response received before the deadline expired.
     timeout,
 };
@@ -274,6 +281,7 @@ pub fn rawUnaryCall(
 
     return switch (try batch.wait(queue, deadline)) {
         .timeout => .timeout,
+        .operation_failed => .operation_failed,
         .failure => |f| .{ .grpc_error = .{
             .code = f.code,
             // Dupe details: f.details points into gRPC-owned memory freed by batch.deinit().
