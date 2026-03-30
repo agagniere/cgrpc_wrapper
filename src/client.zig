@@ -67,12 +67,42 @@ pub const Batch = struct {
         trailing_metadata: c.grpc_metadata_array = .{},
     };
 
+    /// A non-OK status code received from the server.
+    pub const Failure = struct {
+        code: c.grpc_status_code,
+        /// When coming from `Batch.wait`: points into gRPC-owned memory, valid until `deinit`.
+        /// When coming from `rawUnaryCall`: allocated with the provided allocator, caller must free.
+        details: []const u8,
+
+        pub fn toZigError(self: Failure) errors.StatusError {
+            return switch (self.code) {
+                c.GRPC_STATUS_CANCELLED           => error.Cancelled,
+                c.GRPC_STATUS_UNKNOWN             => error.Unknown,
+                c.GRPC_STATUS_INVALID_ARGUMENT    => error.InvalidArgument,
+                c.GRPC_STATUS_DEADLINE_EXCEEDED   => error.DeadlineExceeded,
+                c.GRPC_STATUS_NOT_FOUND           => error.NotFound,
+                c.GRPC_STATUS_ALREADY_EXISTS      => error.AlreadyExists,
+                c.GRPC_STATUS_PERMISSION_DENIED   => error.PermissionDenied,
+                c.GRPC_STATUS_RESOURCE_EXHAUSTED  => error.ResourceExhausted,
+                c.GRPC_STATUS_FAILED_PRECONDITION => error.FailedPrecondition,
+                c.GRPC_STATUS_ABORTED             => error.Aborted,
+                c.GRPC_STATUS_OUT_OF_RANGE        => error.OutOfRange,
+                c.GRPC_STATUS_UNIMPLEMENTED       => error.Unimplemented,
+                c.GRPC_STATUS_INTERNAL            => error.Internal,
+                c.GRPC_STATUS_UNAVAILABLE         => error.Unavailable,
+                c.GRPC_STATUS_DATA_LOSS           => error.DataLoss,
+                c.GRPC_STATUS_UNAUTHENTICATED     => error.Unauthenticated,
+                else                              => error.GrpcError,
+            };
+        }
+    };
+
     pub const Result = union(enum) {
         timeout,
         /// The batch operation failed (event.success == 0). Status fields are not populated.
         operation_failed,
         /// A non-OK status code was received. `details` points into gRPC-owned memory, valid until `deinit`.
-        failure: struct { code: c.grpc_status_code, details: []const u8 },
+        failure: Failure,
         /// The call succeeded. `message` is allocated and must be freed by the caller.
         /// Null if `expectReceivedMessage` was not called on this batch.
         success: ?[]u8,
@@ -212,25 +242,11 @@ pub const Batch = struct {
 /// Possible failures of a rawUnaryCall that are not gRPC-level errors.
 pub const RawCallError = Batch.Error || Batch.WaitError;
 
-/// Result of a raw unary gRPC call.
-pub const RawCallResult = union(enum) {
-    /// The call succeeded. `message` is allocated and must be freed by the caller.
-    /// Null if `expectReceivedMessage` was not called on this batch.
-    success: ?[]u8,
-    /// A non-OK status code was received.
-    /// `details` is allocated and must be freed by the caller.
-    grpc_error: struct { code: c.grpc_status_code, details: []const u8 },
-    /// The batch operation failed (event.success == 0). No status info available.
-    operation_failed,
-    /// No response received before the deadline expired.
-    timeout,
-};
-
 /// Perform a raw unary gRPC call with pre-encoded protobuf request bytes.
 ///
 /// Handles the full call lifecycle (create, start, wait, destroy).
-/// On success, returns the response bytes allocated with `allocator` (caller must free).
-/// On gRPC-level failure, returns a `grpc_error` with the status code and details (caller must free `details`).
+/// Returns a `Batch.Result`. In the `.failure` case, `details` is allocated with `allocator`
+/// and must be freed by the caller (unlike `Batch.Result` from `Batch.wait`, where it is gRPC-owned).
 pub fn rawUnaryCall(
     allocator: Allocator,
     channel: *Channel,
@@ -238,7 +254,7 @@ pub fn rawUnaryCall(
     path: []const u8,
     data: []const u8,
     deadline: Deadline,
-) RawCallError!RawCallResult {
+) RawCallError!Batch.Result {
     const call = channel.createCall(queue, path, deadline);
     defer c.grpc_call_unref(call);
 
@@ -251,7 +267,7 @@ pub fn rawUnaryCall(
     return switch (try batch.wait(queue, deadline)) {
         .timeout => .timeout,
         .operation_failed => .operation_failed,
-        .failure => |f| .{ .grpc_error = .{
+        .failure => |f| .{ .failure = .{
             .code = f.code,
             // Dupe details: f.details points into gRPC-owned memory freed by batch.deinit().
             .details = try allocator.dupe(u8, f.details),

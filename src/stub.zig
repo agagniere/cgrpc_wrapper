@@ -124,25 +124,7 @@ pub fn Stub(comptime ServiceFn: anytype) type {
                 .operation_failed => Error.OperationFailed,
                 .failure => |f| {
                     std.log.err("gRPC error {d}: {s}", .{ f.code, f.details });
-                    return switch (f.code) {
-                        c.GRPC_STATUS_CANCELLED => error.Cancelled,
-                        c.GRPC_STATUS_UNKNOWN => error.Unknown,
-                        c.GRPC_STATUS_INVALID_ARGUMENT => error.InvalidArgument,
-                        c.GRPC_STATUS_DEADLINE_EXCEEDED => error.DeadlineExceeded,
-                        c.GRPC_STATUS_NOT_FOUND => error.NotFound,
-                        c.GRPC_STATUS_ALREADY_EXISTS => error.AlreadyExists,
-                        c.GRPC_STATUS_PERMISSION_DENIED => error.PermissionDenied,
-                        c.GRPC_STATUS_RESOURCE_EXHAUSTED => error.ResourceExhausted,
-                        c.GRPC_STATUS_FAILED_PRECONDITION => error.FailedPrecondition,
-                        c.GRPC_STATUS_ABORTED => error.Aborted,
-                        c.GRPC_STATUS_OUT_OF_RANGE => error.OutOfRange,
-                        c.GRPC_STATUS_UNIMPLEMENTED => error.Unimplemented,
-                        c.GRPC_STATUS_INTERNAL => error.Internal,
-                        c.GRPC_STATUS_UNAVAILABLE => error.Unavailable,
-                        c.GRPC_STATUS_DATA_LOSS => error.DataLoss,
-                        c.GRPC_STATUS_UNAUTHENTICATED => error.Unauthenticated,
-                        else => error.GrpcError,
-                    };
+                    return f.toZigError();
                 },
                 .success => |bytes| {
                     const b = bytes orelse return Error.NoResponse;
