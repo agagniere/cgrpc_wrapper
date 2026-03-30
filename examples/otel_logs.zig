@@ -8,7 +8,7 @@ const Allocator = std.mem.Allocator;
 const Io = std.Io;
 const LogsBatch = otelData.Logs.LogsData;
 
-pub fn main(init: std.process.Init) !void {
+pub fn main(init: std.process.Init) !u8 {
     grpc.init();
     defer grpc.deinit();
     std.log.info("Using gRPC ({s} Remote Procedure Call) version {s}", .{ grpc.gStandsFor(), grpc.version() });
@@ -18,6 +18,7 @@ pub fn main(init: std.process.Init) !void {
 
     var queue: grpc.PluckQueue = .init();
     defer queue.deinit();
+    defer queue.shutdown();
 
     var stub: grpc.Stub(otelData.LogsCollector.LogsService) = .{
         .channel = &channel,
@@ -30,7 +31,7 @@ pub fn main(init: std.process.Init) !void {
 
     const logs = try generateLogs(arena.allocator(), init.io);
 
-    var reply = try stub.call(
+    var reply = stub.call(
         .Export,
         .{ .resource_logs = logs.resource_logs },
         .{ .deadline = .{ .duration = .fromSeconds(3) }, .metadata = &.{
@@ -38,7 +39,10 @@ pub fn main(init: std.process.Init) !void {
             .{ .key = "binary.version", .value = build_info.version },
             .{ .key = "zig.version", .value = builtin.zig_version_string },
         } },
-    );
+    ) catch |err| {
+        std.log.err("gRPC call failed: {t}", .{err});
+        return 1;
+    };
     defer reply.deinit(init.gpa);
 
     if (reply.partial_success) |ps| {
@@ -49,8 +53,7 @@ pub fn main(init: std.process.Init) !void {
         }
     }
     std.log.info("Logs exported successfully", .{});
-
-    queue.shutdown();
+    return 0;
 }
 
 fn generateLogs(alloc: Allocator, io: Io) !LogsBatch {

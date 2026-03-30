@@ -8,7 +8,7 @@ const protocol = @import("helloworld.pb.zig");
 const Allocator = std.mem.Allocator;
 const Io = std.Io;
 
-pub fn main() !void {
+pub fn main() !u8 {
     var debug_allocator: std.heap.DebugAllocator(.{}) = .init;
     defer std.debug.assert(debug_allocator.deinit() == .ok);
     const gpa = debug_allocator.allocator();
@@ -47,7 +47,7 @@ pub fn main() !void {
     switch (try batch.wait(&queue, .{ .duration = .fromSeconds(2) })) {
         .timeout => std.log.warn("timeout", .{}),
         .operation_failed => std.log.err("operation failed", .{}),
-        .failure => |f| std.log.err("gRPC eror {}: {s}", .{ f.code, f.details }),
+        .failure => |f| std.log.err("gRPC error {}: {s}", .{ f.code, f.details }),
         .success => |message| {
             if (message) |bytes| {
                 defer batch.allocator.free(bytes);
@@ -56,7 +56,9 @@ pub fn main() !void {
                 var response: protocol.HelloReply = try .decode(&reader, gpa);
                 defer response.deinit(gpa);
                 std.log.info("Reply : '{s}'", .{response.message});
+                return 0;
             }
         },
     }
+    return 1;
 }
