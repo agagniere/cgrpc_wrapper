@@ -76,23 +76,23 @@ pub const Batch = struct {
 
         pub fn toZigError(self: Failure) errors.StatusError {
             return switch (self.code) {
-                c.GRPC_STATUS_CANCELLED           => error.Cancelled,
-                c.GRPC_STATUS_UNKNOWN             => error.Unknown,
-                c.GRPC_STATUS_INVALID_ARGUMENT    => error.InvalidArgument,
-                c.GRPC_STATUS_DEADLINE_EXCEEDED   => error.DeadlineExceeded,
-                c.GRPC_STATUS_NOT_FOUND           => error.NotFound,
-                c.GRPC_STATUS_ALREADY_EXISTS      => error.AlreadyExists,
-                c.GRPC_STATUS_PERMISSION_DENIED   => error.PermissionDenied,
-                c.GRPC_STATUS_RESOURCE_EXHAUSTED  => error.ResourceExhausted,
+                c.GRPC_STATUS_CANCELLED => error.Cancelled,
+                c.GRPC_STATUS_UNKNOWN => error.Unknown,
+                c.GRPC_STATUS_INVALID_ARGUMENT => error.InvalidArgument,
+                c.GRPC_STATUS_DEADLINE_EXCEEDED => error.DeadlineExceeded,
+                c.GRPC_STATUS_NOT_FOUND => error.NotFound,
+                c.GRPC_STATUS_ALREADY_EXISTS => error.AlreadyExists,
+                c.GRPC_STATUS_PERMISSION_DENIED => error.PermissionDenied,
+                c.GRPC_STATUS_RESOURCE_EXHAUSTED => error.ResourceExhausted,
                 c.GRPC_STATUS_FAILED_PRECONDITION => error.FailedPrecondition,
-                c.GRPC_STATUS_ABORTED             => error.Aborted,
-                c.GRPC_STATUS_OUT_OF_RANGE        => error.OutOfRange,
-                c.GRPC_STATUS_UNIMPLEMENTED       => error.Unimplemented,
-                c.GRPC_STATUS_INTERNAL            => error.Internal,
-                c.GRPC_STATUS_UNAVAILABLE         => error.Unavailable,
-                c.GRPC_STATUS_DATA_LOSS           => error.DataLoss,
-                c.GRPC_STATUS_UNAUTHENTICATED     => error.Unauthenticated,
-                else                              => error.GrpcError,
+                c.GRPC_STATUS_ABORTED => error.Aborted,
+                c.GRPC_STATUS_OUT_OF_RANGE => error.OutOfRange,
+                c.GRPC_STATUS_UNIMPLEMENTED => error.Unimplemented,
+                c.GRPC_STATUS_INTERNAL => error.Internal,
+                c.GRPC_STATUS_UNAVAILABLE => error.Unavailable,
+                c.GRPC_STATUS_DATA_LOSS => error.DataLoss,
+                c.GRPC_STATUS_UNAUTHENTICATED => error.Unauthenticated,
+                else => error.GrpcError,
             };
         }
     };
@@ -267,11 +267,13 @@ pub fn rawUnaryCall(
     return switch (try batch.wait(queue, deadline)) {
         .timeout => .timeout,
         .operation_failed => .operation_failed,
-        .failure => |f| .{ .failure = .{
-            .code = f.code,
-            // Dupe details: f.details points into gRPC-owned memory freed by batch.deinit().
-            .details = try allocator.dupe(u8, f.details),
-        } },
+        .failure => |f| .{
+            .failure = .{
+                .code = f.code,
+                // Dupe details: f.details points into gRPC-owned memory freed by batch.deinit().
+                .details = try allocator.dupe(u8, f.details),
+            },
+        },
         .success => |bytes| .{ .success = bytes },
     };
 }
