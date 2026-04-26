@@ -31,6 +31,20 @@ const grpc = b.dependency("cgrpc_wrapper", {
 mod.addImport("grpc", grpc.module("cgrpc_wrapper"));
 ```
 
+## System Integration
+
+By default, libgrpc is provided from a zig package, to allow cross-compilation and reproducibility.
+
+However, for security reason, or to not waste disk / CPU / time re-compiling a huge library already installed on the system, it might be preferable to use the system's `.so`/`.dylib`
+
+For this purpose, a system integration is available. When building the final binary:
+
+```shell
+zig build -fsys=grpc
+```
+
+will use the system's gRPC library.
+
 ## Authentication
 
 Available types of client credentials:

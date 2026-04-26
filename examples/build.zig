@@ -8,7 +8,7 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const grpc = b.dependency("grpc", .{});
+    const grpc = b.dependency("grpc", .{ .target = target, .optimize = optimize });
     const protobuf = b.dependency("protobuf", .{ .target = target, .optimize = optimize });
     const otelproto = b.dependency("otelproto", .{});
 

@@ -2,17 +2,32 @@ const std = @import("std");
 const zon = @import("build.zig.zon");
 const name = @tagName(zon.name);
 
-pub fn build(b: *std.Build) void {
+pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const grpc = b.dependency("grpc", .{ .target = target, .optimize = optimize });
+    const useSystemGrpc = b.systemIntegrationOption("grpc", .{});
+
+    const grpc = if (useSystemGrpc) bind: {
+        const include_all = b.addWriteFile("grpc_api.h",
+            \\#include <grpc/grpc.h>
+            \\#include <grpc/credentials.h>
+            \\#include <grpc/byte_buffer_reader.h>
+        );
+        const grpc_capi = b.addTranslateC(.{
+            .root_source_file = try include_all.getDirectory().join(b.allocator, "grpc_api.h"),
+            .target = target,
+            .optimize = optimize,
+        });
+        grpc_capi.linkSystemLibrary("grpc", .{});
+        break :bind grpc_capi.createModule();
+    } else b.dependency("grpc", .{ .target = target, .optimize = optimize }).module("cgrpc");
 
     const wrapper = b.addModule(name, .{
         .root_source_file = b.path("src/root.zig"),
         .target = target,
         .optimize = optimize,
-        .imports = &.{.{ .name = "cgrpc", .module = grpc.module("cgrpc") }},
+        .imports = &.{.{ .name = "cgrpc", .module = grpc }},
     });
 
     { // Testing
