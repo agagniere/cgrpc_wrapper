@@ -18,3 +18,13 @@ const grpc = b.dependency("cgrpc_wrapper", {
 
 mod.addImport("grpc", grpc.module("cgrpc_wrapper"));
 ```
+
+## Authentication
+
+Available types of client credentials:
+- insecure
+- local Unix Domain Socket
+- local TCP
+- SSL, with the root certificate provided either:
+  - as a string
+  - or as a file using `GRPC_DEFAULT_SSL_ROOTS_FILE_PATH` environment variable

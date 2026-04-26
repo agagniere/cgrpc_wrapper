@@ -56,9 +56,9 @@ pub const ChannelCredentials = struct {
     //   case verification will retain default behavior. Any settings in
     //   verify_options are copied during this call, so the verify_options
     //   object can be released afterwards.
-    pub fn ssl(root_certs_pem: [:0]const u8, key_cert_pair: ?*SslKeyCertPair) ChannelCredentials {
+    pub fn ssl(root_certs_pem: ?[:0]const u8, key_cert_pair: ?*SslKeyCertPair) ChannelCredentials {
         return .{ .handle = c.grpc_ssl_credentials_create_ex(
-            root_certs_pem.ptr,
+            if (root_certs_pem) |cert| cert.ptr else null,
             @ptrCast(key_cert_pair),
             null,
             null,
