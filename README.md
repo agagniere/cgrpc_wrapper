@@ -2,6 +2,18 @@
 
 This wrapper is a zig interface over libgrpc's core library.
 
+## Status
+
+| Architecture \ OS | Linux | MacOS |
+|:------------------|:-----:|:-----:|
+| `x86_64`          | ✅    | ✅    |
+| `arm64`           | ✅    | ✅    |
+
+| Branch name | Zig version        |
+|:------------|:-------------------|
+| `master`    | `0.16.x`, `master` |
+| `zig-0.15`  | `0.15.x`           |
+
 ## Use
 
 Add the dependency to your `build.zig.zon` by running the following command:
