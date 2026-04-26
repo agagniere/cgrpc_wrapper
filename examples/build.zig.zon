@@ -1,11 +1,16 @@
 .{
     .name = .examples,
-    .version = "0.1.1",
-    .minimum_zig_version = "0.16.0-dev.3006+94355f192",
+    .version = "0.1.2",
+    .minimum_zig_version = "0.16.0",
     .fingerprint = 0x7bd0ad45f44f18a1,
 
     .paths = .{
         "greeter.zig",
+        "greeter_stub.zig",
+        "otel_logs.zig",
+        "otel_pipeline.zig",
+        "build.zig",
+        "build.zig.zon",
     },
 
     .dependencies = .{

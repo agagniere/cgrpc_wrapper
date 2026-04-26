@@ -10,7 +10,10 @@ pub fn main(init: std.process.Init) !void {
     defer grpc.deinit();
     std.log.info("Using gRPC ({s} Remote Procedure Call) version {s}", .{ grpc.gStandsFor(), grpc.version() });
 
-    var channel: grpc.Channel = try .initInsecure("localhost:50051");
+    var credentials: grpc.client.Credentials = .localTCP();
+    defer credentials.deinit();
+
+    var channel: grpc.Channel = try .init("localhost:50051", credentials);
     defer channel.deinit();
 
     var queue: grpc.PluckQueue = .init();

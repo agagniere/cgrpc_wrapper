@@ -5,9 +5,9 @@ const c = @import("cgrpc");
 const t = @import("types.zig");
 
 const Deadline = root.Deadline;
+const Credentials = root.client.Credentials;
 
 pub const Channel = struct {
-    credentials: *t.ChannelCredentials,
     handle: *t.Channel,
 
     pub const InitError = error{
@@ -15,12 +15,11 @@ pub const Channel = struct {
         UnableToCreateChannel,
     };
 
-    pub fn initInsecure(target: [*:0]const u8) InitError!Channel {
-        const creds = c.grpc_insecure_credentials_create().?;
-        errdefer c.grpc_channel_credentials_release(creds);
-
-        return if (c.grpc_channel_create(target, creds, null)) |chan|
-            .{ .credentials = creds, .handle = chan }
+    pub fn init(target: [*:0]const u8, credentials: Credentials) InitError!Channel {
+        // Passing no args for now. Will we want customization ? Possible args:
+        // https://github.com/grpc/grpc/blob/v1.80.x/include/grpc/impl/channel_arg_names.h
+        return if (c.grpc_channel_create(target, credentials.handle, null)) |chan|
+            .{ .handle = chan }
         else
             error.UnableToCreateChannel;
     }
@@ -49,6 +48,5 @@ pub const Channel = struct {
 
     pub fn deinit(self: *Channel) void {
         c.grpc_channel_destroy(self.handle);
-        c.grpc_channel_credentials_release(self.credentials);
     }
 };

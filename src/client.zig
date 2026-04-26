@@ -12,6 +12,8 @@ const PluckQueue = root.PluckQueue;
 const Channel = root.Channel;
 const errors = root.errors;
 
+pub const Credentials = @import("credentials.zig").ChannelCredentials;
+
 pub const Batch = struct {
     outbound: ?*t.ByteBuffer = null,
     inbound: ?*t.ByteBuffer = null,
