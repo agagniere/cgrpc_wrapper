@@ -11,13 +11,17 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
-    runs-on: ${{matrix.os}}
+        zig-version: 0.16.0
+        include:
+          - os: ubuntu-latest
+            zig-version: master
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - name: Setup Zig Compiler
         uses: mlugg/setup-zig@v2
         with:
-          version: master
+          version: ${{ matrix.zig-version }}
       - run: zig build --summary new
       - run: zig build test --summary new
       - name: Build examples
