@@ -9,6 +9,7 @@ pub const NextQueue = queue.NextQueue;
 pub const PluckQueue = queue.PluckQueue;
 pub const Channel = @import("channel.zig").Channel;
 pub const Stub = @import("stub.zig").Stub;
+pub const SSLKeyCertPair = @import("credentials.zig").SSLKeyCertPair;
 
 pub const init = global.init;
 pub const deinit = global.deinit;
