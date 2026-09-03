@@ -9,10 +9,11 @@ This wrapper is a zig interface over libgrpc's core library.
 | `x86_64`          | ✅    | ✅    |
 | `arm64`           | ✅    | ✅    |
 
-| Branch name | Zig version        |
-|:------------|:-------------------|
-| `master`    | `0.16.x`, `master` |
-| `zig-0.15`  | `0.15.x`           |
+| Branch name | Zig version |
+|:------------|:------------|
+| `master`    | `master`    |
+| `zig-0.16`  | `0.16.x`    |
+| `zig-0.15`  | `0.15.x`    |
 
 ## Use
 
