@@ -25,7 +25,7 @@ jobs:
           version: master
       - run: zig build docs --summary new
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v7
+        uses: actions/upload-pages-artifact@v5
         with:
           path: zig-out/docs/
 
