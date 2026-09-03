@@ -16,8 +16,8 @@
     .dependencies = .{
         .grpc = .{ .path = ".." },
         .protobuf = .{
-            .url = "git+https://github.com/Arwalk/zig-protobuf?ref=master#1f6cb06156b3ff4f52f98bc14f829c0b8393a6fc",
-            .hash = "protobuf-5.0.0-0e82avKUKAAVwTWJzTIEZ14Fu0zC11_lElR8tE6H__y1",
+            .url = "git+https://github.com/Arwalk/zig-protobuf?ref=master#b794f99323cead7f1794ae68554d0311cc309857",
+            .hash = "protobuf-5.0.0-0e82ahZiKwC5Yrh4psANoUzrV_H4CQU1EsOIY9Zdyap_",
         },
         .otelproto = .{
             .url = "git+https://github.com/open-telemetry/opentelemetry-proto?ref=v1.10.0#ca839c51f706f5d53bfb46f06c3e90c3af3a52c6",
