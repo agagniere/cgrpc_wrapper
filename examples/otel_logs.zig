@@ -84,7 +84,7 @@ fn generateLogs(alloc: Allocator, io: Io) !LogsBatch {
         const log: otelData.Logs.LogRecord = .{
             .time_unix_nano = now_ns,
             .observed_time_unix_nano = now_ns,
-            .severity_number = @enumFromInt((i % 6) * 4 + 1),
+            .severity_number = @fromBackingInt(@intCast((i % 6) * 4 + 1)),
             .body = .{ .value = .{ .string_value = "Hello from zig-grpc" } },
         };
         try logs_from_instance.log_records.append(alloc, log);

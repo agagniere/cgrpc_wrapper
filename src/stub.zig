@@ -19,27 +19,31 @@ fn decodeError(comptime Response: type) type {
     return @typeInfo(@typeInfo(@TypeOf(Response.decode)).@"fn".return_type.?).error_union.error_set;
 }
 
+/// Returns the function type behind a VTable method pointer.
+fn fnOf(comptime VTable: type, comptime method: []const u8) type {
+    return @typeInfo(@FieldType(VTable, method)).pointer.child;
+}
+
 /// Returns the type of the request parameter of a VTable method.
 fn requestOf(comptime VTable: type, comptime method: []const u8) type {
-    for (@typeInfo(VTable).@"struct".fields) |f| {
-        if (std.mem.eql(u8, f.name, method)) {
-            const fn_type = @typeInfo(f.type).pointer.child;
-            return @typeInfo(fn_type).@"fn".params[1].type.?;
-        }
-    }
-    @compileError("method '" ++ method ++ "' not found in service");
+    return @FieldType(std.meta.ArgsTuple(fnOf(VTable, method)), "1");
 }
 
 /// Returns the response type (payload of the error union) of a VTable method.
 fn responseOf(comptime VTable: type, comptime method: []const u8) type {
-    for (@typeInfo(VTable).@"struct".fields) |f| {
-        if (std.mem.eql(u8, f.name, method)) {
-            const fn_type = @typeInfo(f.type).pointer.child;
-            const return_type = @typeInfo(fn_type).@"fn".return_type.?;
-            return @typeInfo(return_type).error_union.payload;
-        }
-    }
-    @compileError("method '" ++ method ++ "' not found in service");
+    const return_type = @typeInfo(fnOf(VTable, method)).@"fn".return_type.?;
+    return @typeInfo(return_type).error_union.payload;
+}
+
+test "method reflection" {
+    const Request = struct {};
+    const Response = struct {};
+    const VTable = struct {
+        SayHello: *const fn (*anyopaque, Request) error{Boom}!Response,
+    };
+
+    try std.testing.expectEqual(Request, requestOf(VTable, "SayHello"));
+    try std.testing.expectEqual(Response, responseOf(VTable, "SayHello"));
 }
 
 /// Typed gRPC client stub for a protobuf-generated service.

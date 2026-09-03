@@ -4,6 +4,15 @@ const name = @tagName(zon.name);
 
 const RunProtocStep = @import("protobuf").RunProtocStep;
 
+/// Generated code lands in the build root, so the `zig fmt` pass that follows
+/// protoc formats that whole directory. Since Zig 0.17 dependencies are fetched
+/// into `zig-pkg/` inside the build root, which would make that pass descend
+/// into third-party sources and fail on any that master's parser rejects.
+fn excludeVendoredSources(b: *std.Build, protoc: *RunProtocStep) void {
+    protoc.fmt_run.addArg("--exclude");
+    protoc.fmt_run.addDirectoryArg(b.path("zig-pkg"));
+}
+
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
@@ -17,6 +26,8 @@ pub fn build(b: *std.Build) void {
         .source_files = &.{b.path("helloworld.proto")},
         .include_directories = &.{b.path("")},
     });
+    excludeVendoredSources(b, run_protoc);
+
     const mod = b.createModule(.{
         .root_source_file = b.path("greeter.zig"),
         .target = target,
@@ -30,7 +41,7 @@ pub fn build(b: *std.Build) void {
         .name = "greeter_client",
         .root_module = mod,
     });
-    exe.step.dependOn(&run_protoc.step);
+    exe.step.dependOn(run_protoc.step);
     b.installArtifact(exe);
 
     { // Build info
@@ -53,7 +64,7 @@ pub fn build(b: *std.Build) void {
         .name = "greeter_stub_client",
         .root_module = stub_mod,
     });
-    stub_exe.step.dependOn(&run_protoc.step);
+    stub_exe.step.dependOn(run_protoc.step);
     b.installArtifact(stub_exe);
 
     { // Build info
@@ -75,7 +86,9 @@ pub fn build(b: *std.Build) void {
             otelproto.path(""),
         },
     });
-    gen_proto.dependOn(&run_protoc_otel.step);
+    excludeVendoredSources(b, run_protoc_otel);
+
+    gen_proto.dependOn(run_protoc_otel.step);
 
     const otel_pipeline_mod = b.addModule("otel_pipeline", .{
         .root_source_file = b.path("otel_pipeline.zig"),
@@ -97,7 +110,7 @@ pub fn build(b: *std.Build) void {
         .name = "otel_logs_client",
         .root_module = otel_mod,
     });
-    otel_exe.step.dependOn(&run_protoc_otel.step);
+    otel_exe.step.dependOn(run_protoc_otel.step);
     b.installArtifact(otel_exe);
 
     { // Build info

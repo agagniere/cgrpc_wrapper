@@ -1,7 +1,7 @@
 .{
     .name = .examples,
     .version = "0.1.2",
-    .minimum_zig_version = "0.16.0",
+    .minimum_zig_version = "0.17.0-dev.1970+67f39b551",
     .fingerprint = 0x7bd0ad45f44f18a1,
 
     .paths = .{
@@ -16,8 +16,8 @@
     .dependencies = .{
         .grpc = .{ .path = ".." },
         .protobuf = .{
-            .url = "git+https://github.com/Arwalk/zig-protobuf?ref=master#b794f99323cead7f1794ae68554d0311cc309857",
-            .hash = "protobuf-5.0.0-0e82ahZiKwC5Yrh4psANoUzrV_H4CQU1EsOIY9Zdyap_",
+            .url = "git+https://github.com/Arwalk/zig-protobuf?ref=zig-master#50f1b1ccc064ab24db054a0be8f79c7692c7e6e5",
+            .hash = "protobuf-5.0.0-0e82antLKADQjGxTrKKjPiM6zV76ZXaeHjuys8GS1OFH",
         },
         .otelproto = .{
             .url = "git+https://github.com/open-telemetry/opentelemetry-proto?ref=v1.10.0#ca839c51f706f5d53bfb46f06c3e90c3af3a52c6",

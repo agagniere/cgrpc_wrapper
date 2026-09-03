@@ -10,6 +10,12 @@ const Context = struct {
     allocated_size: usize,
 };
 
+/// The inline storage of a `grpc_slice`, read off the struct layout rather than
+/// the translated `GRPC_SLICE_INLINED_SIZE` macro: that macro expands to
+/// `std.zig.c_translation` helpers, which fails compilation on zig 0.17.0-dev.1970+67f39b551
+const InlinedBytes = @FieldType(@FieldType(@FieldType(t.Slice, "data"), "inlined"), "bytes");
+const inlined_size = @typeInfo(InlinedBytes).array.len;
+
 fn destroySlice(raw: [*]u8) callconv(.c) void {
     const context: *Context = @ptrCast(@alignCast(raw));
     const zig_slice: []align(@alignOf(Context)) u8 = @alignCast(raw[0..context.*.allocated_size]);
@@ -21,19 +27,19 @@ fn destroySlice(raw: [*]u8) callconv(.c) void {
 /// - co-allocates data and refcount in a single allocation
 /// - eliminates the Context overhead and custom destructor
 pub fn makeSlice(gpa: Allocator, data: []const u8) !t.Slice {
-    if (data.len <= c.GRPC_SLICE_INLINED_SIZE)
+    if (data.len <= inlined_size)
         return .{
             .refcount = null,
             .data = .{ .inlined = .{
                 .length = @truncate(data.len),
                 .bytes = blk: {
-                    var array: [c.GRPC_SLICE_INLINED_SIZE]u8 = undefined;
+                    var array: InlinedBytes = undefined;
                     @memcpy(array[0..data.len], data);
                     break :blk array;
                 },
             } },
         };
-    if (comptime builtin.mode == .ReleaseFast or builtin.mode == .ReleaseSmall)
+    if (comptime builtin.mode == .fast or builtin.mode == .small)
         return c.grpc_slice_from_copied_buffer(data.ptr, data.len);
     const size = data.len + @sizeOf(Context);
     const memory = try gpa.alignedAlloc(u8, .of(Context), size);
