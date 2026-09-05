@@ -19,7 +19,7 @@ This wrapper is a zig interface over libgrpc's core library.
 
 Add the dependency to your `build.zig.zon` by running the following command:
 ```zig
-zig fetch --save git+https://github.com/agagniere/cgrpc_wrapper#master
+zig fetch --save git+https://github.com/agagniere/cgrpc_wrapper#zig-0.16
 ```
 
 Then, in your `build.zig`:

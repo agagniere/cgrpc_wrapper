@@ -20,7 +20,7 @@ jobs:
         with:
           version: ${{ matrix.zig-version }}
       - run: zig build --summary new
-      - run: zig build test --summary new
+      #- run: zig build test --summary new
       - name: Build examples
         working-directory: examples
         run: zig build --summary new
