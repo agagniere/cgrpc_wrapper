@@ -51,7 +51,11 @@ pub fn makeSlice(gpa: Allocator, data: []const u8) !t.Slice {
 }
 
 /// Return a Zig slice pointing into the existing grpc_slice memory. No allocation.
-pub fn asZigSlice(s: t.Slice) []const u8 {
+///
+/// Takes `s` by pointer: the inlined representation stores its bytes inside the
+/// `grpc_slice` itself, so a by-value parameter would leave the returned slice
+/// pointing at a dead stack frame once this function returns.
+pub fn asZigSlice(s: *const t.Slice) []const u8 {
     if (s.refcount == null)
         return s.data.inlined.bytes[0..s.data.inlined.length]
     else
@@ -70,7 +74,10 @@ test {
         defer c.grpc_slice_unref(a);
         const b = c.grpc_slice_from_static_buffer(case.ptr, case.len);
         defer c.grpc_slice_unref(b);
+
         try std.testing.expectEqual(0, c.grpc_slice_cmp(a, b));
+        try std.testing.expectEqualSlices(u8, case, asZigSlice(&a));
+        try std.testing.expectEqualSlices(u8, case, asZigSlice(&b));
     }
 }
 

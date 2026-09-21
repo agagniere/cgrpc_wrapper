@@ -219,7 +219,7 @@ pub const Batch = struct {
             .success => if (self.status.code != c.GRPC_STATUS_OK)
                 .{ .failure = .{
                     .code = self.status.code,
-                    .details = asZigSlice(self.status.details),
+                    .details = asZigSlice(&self.status.details),
                 } }
             else
                 .{ .success = if (self.is_inbound_expected)
