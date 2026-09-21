@@ -9,11 +9,11 @@ This wrapper is a zig interface over libgrpc's core library.
 | `x86_64`          | ✅    | ✅    |
 | `arm64`           | ✅    | ✅    |
 
-| Branch name | Zig version |
-|:------------|:------------|
-| `master`    | `master`    |
-| `zig-0.16`  | `0.16.x`    |
-| `zig-0.15`  | `0.15.x`    |
+| Branch name | Zig version | gRPC version |
+|:------------|:------------|--------------|
+| `master`    | `master`    | `1.84.0`     |
+| `zig-0.16`  | `0.16.x`    | `1.84.0`     |
+| `zig-0.15`  | `0.15.x`    | `1.80.0`     |
 
 ## Use
 
@@ -24,7 +24,7 @@ zig fetch --save git+https://github.com/agagniere/cgrpc_wrapper#master
 
 Then, in your `build.zig`:
 ```zig
-const grpc = b.dependency("cgrpc_wrapper", {
+const grpc = b.dependency("cgrpc_wrapper", .{
     .target = target,
     .optimize = optimize,
 });
