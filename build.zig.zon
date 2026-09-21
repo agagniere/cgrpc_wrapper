@@ -12,8 +12,8 @@
 
     .dependencies = .{
         .grpc = .{
-            .url = "git+https://github.com/allyourcodebase/grpc?ref=master#f35585d0f2c291a08a610b1d6b624b5b59fe5750",
-            .hash = "grpc-1.83.1-1lXNFSFwAQAkrrWuEMwpmK8034gJ2YK_zaLg2yZYh9PS",
+            .url = "git+https://github.com/allyourcodebase/grpc?ref=master#26f7af08447a05d28d09144ee856c1cc73b5fdf4",
+            .hash = "grpc-1.84.0-1lXNFVRyAQBqv3TuPMF9uDBe30lMmHswn8uzuJTP1GQJ",
         },
     },
 }
