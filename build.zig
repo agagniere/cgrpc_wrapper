@@ -6,14 +6,8 @@ pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const useSystemGrpc = b.systemIntegrationOption("grpc", .{});
-
-    const grpc_dep = if (useSystemGrpc) null else b.dependency("grpc", .{ .target = target, .optimize = optimize });
-    const grpc = if (grpc_dep) |dep| dep.module("cgrpc") else bind: {
-        const grpc_capi = try translateGrpcApi(b, target, optimize);
-        grpc_capi.linkSystemLibrary("grpc", .{});
-        break :bind grpc_capi.createModule();
-    };
+    // Linked to either a libgrpc built from source, or the system's one with `-fsys=grpc`
+    const grpc = b.dependency("grpc", .{ .target = target, .optimize = optimize }).module("cgrpc");
 
     const wrapper = b.addModule(name, .{
         .root_source_file = b.path("src/root.zig"),
@@ -28,14 +22,15 @@ pub fn build(b: *std.Build) !void {
         test_step.dependOn(&b.addRunArtifact(unit_tests).step);
     }
     { // Documentation
-        // Generating docs only needs the C API declarations. The dependency's
-        // `cgrpc` module links libgrpc, which would make the docs build it, so
-        // translate the installed headers on their own instead.
-        const grpc_decls = if (grpc_dep) |dep| bind: {
-            const grpc_capi = try translateGrpcApi(b, target, optimize);
-            grpc_capi.addIncludePath(dep.artifact("grpc").getEmittedIncludeTree());
-            break :bind grpc_capi.createModule();
-        } else grpc;
+        // Generating docs only needs the C API declarations, but `cgrpc` links
+        // libgrpc, which would make the docs build it. Use the same translated
+        // bindings through a module that doesn't link anything.
+        const grpc_decls = b.createModule(.{
+            .root_source_file = grpc.root_source_file,
+            .target = grpc.resolved_target,
+            .optimize = grpc.optimize,
+            .link_libc = grpc.link_libc,
+        });
 
         const docs_step = b.step("docs", "Build the project documentation");
         const docs_obj = b.addObject(.{
@@ -54,17 +49,4 @@ pub fn build(b: *std.Build) !void {
         });
         docs_step.dependOn(&install_docs.step);
     }
-}
-
-fn translateGrpcApi(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) !*std.Build.Step.TranslateC {
-    const include_all = b.addWriteFile("grpc_api.h",
-        \\#include <grpc/grpc.h>
-        \\#include <grpc/credentials.h>
-        \\#include <grpc/byte_buffer_reader.h>
-    );
-    return b.addTranslateC(.{
-        .root_source_file = try include_all.getDirectory().join(b.allocator, "grpc_api.h"),
-        .target = target,
-        .optimize = optimize,
-    });
 }
