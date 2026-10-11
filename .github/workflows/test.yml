@@ -23,4 +23,8 @@ jobs:
       - run: zig build test --summary new
       - name: Build examples
         working-directory: examples
+        # Reuse the root project's packages: source paths are part of the cache
+        # key, so fetching libgrpc into `examples/zig-pkg/` would rebuild it.
+        env:
+          ZIG_LOCAL_PKG_DIR: ${{ github.workspace }}/zig-pkg
         run: zig build --summary new
