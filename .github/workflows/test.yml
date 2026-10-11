@@ -13,6 +13,12 @@ jobs:
         os: [ubuntu-latest, macos-latest]
         zig-version: [master]
     runs-on: ${{ matrix.os }}
+    # Share one package directory between the root project and the examples, set
+    # explicitly for both: package paths are part of the cache key, and the
+    # default `zig-pkg/` is referred to with a relative path, which differs
+    # between build roots. Otherwise the examples would rebuild libgrpc.
+    env:
+      ZIG_LOCAL_PKG_DIR: ${{ github.workspace }}/zig-pkg
     steps:
       - uses: actions/checkout@v7
       - name: Setup Zig Compiler
@@ -23,8 +29,4 @@ jobs:
       - run: zig build test --summary new
       - name: Build examples
         working-directory: examples
-        # Reuse the root project's packages: source paths are part of the cache
-        # key, so fetching libgrpc into `examples/zig-pkg/` would rebuild it.
-        env:
-          ZIG_LOCAL_PKG_DIR: ${{ github.workspace }}/zig-pkg
         run: zig build --summary new
