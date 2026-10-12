@@ -18,8 +18,7 @@ jobs:
         include:
           - os: ubuntu-latest
             zig-version: "0.17.0"
-          - os: macos-latest
-            zig-version: "0.17.0"
+            use-system-grpc: false
 
     runs-on: ${{ matrix.os }}
     # For the examples to reuse the libgrpc built by the root project, the paths
@@ -51,7 +50,8 @@ jobs:
           # that empties it after each run. Compressed, it only takes about 0.5 GB of storage
           cache-size-limit: 4096
       # The CPU is part of every cache key, and runners' CPUs vary: target the baseline CPU to reuse the cache
-      - run: zig build -Dlink_mode=dynamic -Dcpu=baseline $SYSTEM_GRPC --summary new
+      - name: Build script
+        run: zig build -Dlink_mode=dynamic -Dcpu=baseline $SYSTEM_GRPC --summary new
       - name: Build & run tests
         run: zig build -Dlink_mode=dynamic -Dcpu=baseline $SYSTEM_GRPC --summary new test
       - name: Build examples
