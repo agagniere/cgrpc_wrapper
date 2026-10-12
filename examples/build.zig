@@ -5,7 +5,7 @@ const name = @tagName(zon.name);
 const RunProtocStep = @import("protobuf").RunProtocStep;
 
 /// Generated code lands in the build root, so the `zig fmt` pass that follows
-/// protoc formats that whole directory. Since Zig 0.17 dependencies are fetched
+/// protoc formats that whole directory. Since Zig 0.16 dependencies are fetched
 /// into `zig-pkg/` inside the build root, which would make that pass descend
 /// into third-party sources and fail on any that master's parser rejects.
 fn excludeVendoredSources(b: *std.Build, protoc: *RunProtocStep) void {
@@ -16,8 +16,9 @@ fn excludeVendoredSources(b: *std.Build, protoc: *RunProtocStep) void {
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+    const link_mode = b.option(std.builtin.LinkMode, "link_mode", "Link libgrpc statically or dynamically");
 
-    const grpc = b.dependency("grpc", .{ .target = target, .optimize = optimize });
+    const grpc = b.dependency("grpc", .{ .target = target, .optimize = optimize, .link_mode = link_mode });
     const protobuf = b.dependency("protobuf", .{ .target = target, .optimize = optimize });
     const otelproto = b.dependency("otelproto", .{});
 
@@ -43,6 +44,11 @@ pub fn build(b: *std.Build) void {
     });
     exe.step.dependOn(run_protoc.step);
     b.installArtifact(exe);
+    if (!b.systemIntegrationOption("grpc", .{})) {
+        const libgrpc = grpc.artifact("grpc");
+        if (libgrpc.isDynamicLibrary())
+            b.installArtifact(libgrpc);
+    }
 
     { // Build info
         const build_info = b.addOptions();

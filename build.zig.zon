@@ -1,7 +1,7 @@
 .{
     .name = .cgrpc_wrapper,
-    .version = "0.2.2",
-    .minimum_zig_version = "0.17.0-dev.2015+3fdcbc03d",
+    .version = "0.3.0",
+    .minimum_zig_version = "0.17.0",
     .fingerprint = 0xb501c9835389c3b,
 
     .paths = .{
@@ -12,8 +12,8 @@
 
     .dependencies = .{
         .grpc = .{
-            .url = "git+https://github.com/allyourcodebase/grpc?ref=master#f5b75ea9ecb7c36e15caaf2873ffbc644ad700ef",
-            .hash = "grpc-1.85.0-pre1-1lXNFbt6AQBtKGsmF2wuj44MhcEvar7ECqycmQZ-XD2a",
+            .url = "git+https://github.com/allyourcodebase/grpc?ref=master#620f29c5c86d6030f6415df491718aeb2dc26e4e",
+            .hash = "grpc-1.85.0-pre1-1lXNFW-DAQAxWS2N4AxWt1fx9botyfaVIp_aviIzcfDh",
         },
     },
 }
