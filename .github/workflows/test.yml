@@ -10,23 +10,50 @@ jobs:
   test:
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
-        zig-version: [master]
+        # Only build from source on 0.17 to not have a cache miss
+        # each time the compiler is bumped on master
+        os: [macos-latest]
+        zig-version: [master, "0.17.0"]
+        use-system-grpc: [true]
+        include:
+          - os: ubuntu-latest
+            zig-version: "0.17.0"
+          - os: macos-latest
+            zig-version: "0.17.0"
+
     runs-on: ${{ matrix.os }}
-    # Share one package directory between the root project and the examples, set
-    # explicitly for both: package paths are part of the cache key, and the
-    # default `zig-pkg/` is referred to with a relative path, which differs
-    # between build roots. Otherwise the examples would rebuild libgrpc.
+    # For the examples to reuse the libgrpc built by the root project, the paths
+    # passed to the compiler must be identical in both builds. Paths under the
+    # build root are passed relative to it, so the package directory and the
+    # cache (that setup-zig puts in the workspace) must be outside both build
+    # roots: check out the repository in a subdirectory.
     env:
       ZIG_LOCAL_PKG_DIR: ${{ github.workspace }}/zig-pkg
+    defaults:
+      run:
+        working-directory: src
     steps:
       - uses: actions/checkout@v7
+        with:
+          path: src
+      - name: Install gRPC
+        if: matrix.use-system-grpc
+        run: |
+          brew install grpc
+          echo "SYSTEM_GRPC=-fsys=grpc" >> "$GITHUB_ENV"
+          # Zig only searches Homebrew's include and lib directories when this is set
+          echo "HOMEBREW_PREFIX=$(brew --prefix)" >> "$GITHUB_ENV"
       - name: Setup Zig Compiler
         uses: mlugg/setup-zig@v2
         with:
           version: ${{ matrix.zig-version }}
-      - run: zig build --summary new
-      - run: zig build test --summary new
+          # A Debug libgrpc build fills about 2.5 GB of cache, above the default 2 GiB limit
+          # that empties it after each run. Compressed, it only takes about 0.5 GB of storage
+          cache-size-limit: 4096
+      # The CPU is part of every cache key, and runners' CPUs vary: target the baseline CPU to reuse the cache
+      - run: zig build -Dlink_mode=dynamic -Dcpu=baseline $SYSTEM_GRPC --summary new
+      - name: Build & run tests
+        run: zig build -Dlink_mode=dynamic -Dcpu=baseline $SYSTEM_GRPC --summary new test
       - name: Build examples
-        working-directory: examples
-        run: zig build --summary new
+        working-directory: src/examples
+        run: zig build -Dlink_mode=dynamic -Dcpu=baseline $SYSTEM_GRPC --summary new

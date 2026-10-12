@@ -4,7 +4,7 @@ This wrapper is a zig interface over libgrpc's core library.
 
 ## Status
 
-| Architecture \ OS | Linux | MacOS |
+| Architecture \ OS | Linux | macOS |
 |:------------------|:-----:|:-----:|
 | `x86_64`          | ✅    | ✅    |
 | `arm64`           | ✅    | ✅    |
@@ -18,7 +18,7 @@ This wrapper is a zig interface over libgrpc's core library.
 ## Use
 
 Add the dependency to your `build.zig.zon` by running the following command:
-```zig
+```shell
 zig fetch --save git+https://github.com/agagniere/cgrpc_wrapper#master
 ```
 
