@@ -4,13 +4,12 @@ const name = @tagName(zon.name);
 
 const RunProtocStep = @import("protobuf").RunProtocStep;
 
-/// Generated code lands in the build root, so the `zig fmt` pass that follows
+/// Generated code lands in the build root, so the `zig fmt` step that follows
 /// protoc formats that whole directory. Since Zig 0.16 dependencies are fetched
-/// into `zig-pkg/` inside the build root, which would make that pass descend
+/// into `zig-pkg/` inside the build root, which would make that step descend
 /// into third-party sources and fail on any that master's parser rejects.
 fn excludeVendoredSources(b: *std.Build, protoc: *RunProtocStep) void {
-    protoc.fmt_run.addArg("--exclude");
-    protoc.fmt_run.addDirectoryArg(b.path("zig-pkg"));
+    protoc.fmt_step.exclude_paths = b.allocator.dupe(std.Build.LazyPath, &.{b.path("zig-pkg")}) catch @panic("OOM");
 }
 
 pub fn build(b: *std.Build) void {

@@ -6,7 +6,7 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
     const link_mode = b.option(std.builtin.LinkMode, "link_mode", "Link libgrpc statically or dynamically");
-    const pic = b.option(bool, "pic", "Produce Position Independent Code. Defaults to true when link_mode is dynamic");
+    const pic = b.option(bool, "pic", "Produce Position Independent Code. Defaults to true when link_mode is dynamic, to the target's default otherwise");
 
     const grpc = b.dependency("grpc", .{
         .target = target,
