@@ -48,7 +48,10 @@ pub fn main() !u8 {
     try batch.start(greet_call);
 
     switch (try batch.wait(&queue, .{ .duration = .fromSeconds(2) })) {
-        .timeout => std.log.warn("timeout", .{}),
+        .timeout => {
+            std.log.warn("timeout", .{});
+            batch.cancel(greet_call, &queue);
+        },
         .operation_failed => std.log.err("operation failed", .{}),
         .failure => |f| std.log.err("gRPC error {}: {s}", .{ f.code, f.details }),
         .success => |message| {

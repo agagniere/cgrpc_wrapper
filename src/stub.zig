@@ -124,7 +124,10 @@ pub fn Stub(comptime ServiceFn: anytype) type {
             try batch.start(grpc_call);
 
             return switch (try batch.wait(self.queue, options.deadline)) {
-                .timeout => Error.Timeout,
+                .timeout => {
+                    batch.cancel(grpc_call, self.queue);
+                    return Error.Timeout;
+                },
                 .operation_failed => Error.OperationFailed,
                 .failure => |f| {
                     std.log.err("gRPC error {d}: {s}", .{ f.code, f.details });

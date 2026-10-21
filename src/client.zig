@@ -211,6 +211,9 @@ pub const Batch = struct {
     }
 
     /// Wait for this batch's completion event, then return the result.
+    ///
+    /// On `.timeout`, the batch is still in flight: wait again, or `cancel` it,
+    /// before destroying the batch or the call.
     pub fn wait(self: *Batch, queue: *PluckQueue, deadline: Deadline) WaitError!Result {
         const event = queue.pluck(@ptrCast(self), deadline) orelse return error.QueueShutdown;
         return switch (event) {
@@ -227,6 +230,15 @@ pub const Batch = struct {
                 else
                     null },
         };
+    }
+
+    /// Cancel the call this batch was started on, and wait for the batch to complete.
+    ///
+    /// Until its completion event is received, gRPC still reads the message
+    /// to send and writes the response and status into the batch.
+    pub fn cancel(self: *Batch, call: *t.Call, queue: *PluckQueue) void {
+        _ = c.grpc_call_cancel(call, null);
+        _ = queue.pluck(@ptrCast(self), .infinite);
     }
 
     /// Destroy all gRPC buffers and release allocated memory
@@ -267,7 +279,10 @@ pub fn rawUnaryCall(
     try batch.start(call);
 
     return switch (try batch.wait(queue, deadline)) {
-        .timeout => .timeout,
+        .timeout => {
+            batch.cancel(call, queue);
+            return .timeout;
+        },
         .operation_failed => .operation_failed,
         .failure => |f| .{
             .failure = .{
@@ -278,4 +293,39 @@ pub fn rawUnaryCall(
         },
         .success => |bytes| .{ .success = bytes },
     };
+}
+
+test "a timed out batch can be cancelled" {
+    root.init();
+    defer root.deinit();
+
+    // The kernel completes TCP handshakes on a listening socket, but nothing ever answers
+    const io = std.testing.io;
+    const address: std.Io.net.IpAddress = try .parse("127.0.0.1", 0);
+    var server = try address.listen(io, .{});
+    defer server.deinit(io);
+
+    var target_buffer: [32]u8 = undefined;
+    const target = try std.fmt.bufPrintSentinel(&target_buffer, "127.0.0.1:{d}", .{server.socket.address.getPort()}, 0);
+
+    var credentials: Credentials = .insecure();
+    defer credentials.deinit();
+    var channel: Channel = try .init(target, credentials);
+    defer channel.deinit();
+    var queue: PluckQueue = .init();
+    defer queue.deinit();
+    defer queue.shutdown();
+
+    const call = channel.createCall(&queue, "/test.Service/Method", .{ .duration = .fromSeconds(30) });
+    defer c.grpc_call_unref(call);
+
+    var batch: Batch = .init(std.testing.allocator);
+    defer batch.deinit();
+    try batch.setMessageToSend("");
+    batch.expectReceivedMessage();
+    try batch.start(call);
+
+    try std.testing.expectEqual(.timeout, try batch.wait(&queue, .{ .duration = .fromMilliseconds(100) }));
+    batch.cancel(call, &queue);
+    try std.testing.expectEqual(@as(c.grpc_status_code, c.GRPC_STATUS_CANCELLED), batch.status.code);
 }
