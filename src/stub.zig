@@ -125,7 +125,7 @@ pub fn Stub(comptime ServiceFn: anytype) type {
 
             return switch (try batch.wait(self.queue, options.deadline)) {
                 .timeout => {
-                    batch.cancel(grpc_call, self.queue);
+                    batch.cancel(self.queue);
                     return Error.Timeout;
                 },
                 .operation_failed => Error.OperationFailed,

@@ -21,6 +21,9 @@ pub const Batch = struct {
     status: Status = .{},
     metadata: std.ArrayList(t.Metadata),
     allocator: Allocator,
+    /// The call this batch was started on, until its completion event is received.
+    /// Not owned: the call must outlive the batch.
+    call: ?*t.Call = null,
 
     /// Possible failures from incorrect API usage; indicate a bug in the caller.
     pub const Error = errors.UsageError;
@@ -161,7 +164,7 @@ pub const Batch = struct {
             @ptrCast(self),
             null,
         )) {
-            c.GRPC_CALL_OK => {},
+            c.GRPC_CALL_OK => self.call = call,
             c.GRPC_CALL_ERROR_NOT_ON_SERVER => Error.NotOnServer,
             c.GRPC_CALL_ERROR_NOT_ON_CLIENT => Error.NotOnClient,
             c.GRPC_CALL_ERROR_ALREADY_ACCEPTED => Error.AlreadyAccepted,
@@ -216,6 +219,7 @@ pub const Batch = struct {
     /// before destroying the batch or the call.
     pub fn wait(self: *Batch, queue: *PluckQueue, deadline: Deadline) WaitError!Result {
         const event = queue.pluck(@ptrCast(self), deadline) orelse return error.QueueShutdown;
+        if (event != .timeout) self.call = null;
         return switch (event) {
             .timeout => .timeout,
             .failure => .operation_failed,
@@ -236,9 +240,13 @@ pub const Batch = struct {
     ///
     /// Until its completion event is received, gRPC still reads the message
     /// to send and writes the response and status into the batch.
-    pub fn cancel(self: *Batch, call: *t.Call, queue: *PluckQueue) void {
+    /// Cancelling the call completes every batch in flight on it, but only this
+    /// batch's event is received here. Does nothing if this batch is not in flight.
+    pub fn cancel(self: *Batch, queue: *PluckQueue) void {
+        const call = self.call orelse return;
         _ = c.grpc_call_cancel(call, null);
         _ = queue.pluck(@ptrCast(self), .infinite);
+        self.call = null;
     }
 
     /// Destroy all gRPC buffers and release allocated memory
@@ -280,7 +288,7 @@ pub fn rawUnaryCall(
 
     return switch (try batch.wait(queue, deadline)) {
         .timeout => {
-            batch.cancel(call, queue);
+            batch.cancel(queue);
             return .timeout;
         },
         .operation_failed => .operation_failed,
@@ -326,6 +334,8 @@ test "a timed out batch can be cancelled" {
     try batch.start(call);
 
     try std.testing.expectEqual(.timeout, try batch.wait(&queue, .{ .duration = .fromMilliseconds(100) }));
-    batch.cancel(call, &queue);
+    batch.cancel(&queue);
     try std.testing.expectEqual(@as(c.grpc_status_code, c.GRPC_STATUS_CANCELLED), batch.status.code);
+    // No longer in flight: there is no event left to wait for
+    batch.cancel(&queue);
 }
