@@ -14,6 +14,19 @@ const errors = root.errors;
 
 pub const Credentials = @import("credentials.zig").ChannelCredentials;
 
+/// A metadata element to send with a call.
+/// gRPC only accepts keys made of lowercase letters, digits, `-`, `_` and `.`,
+/// and values of printable ASCII, unless the key ends with `-bin`.
+pub const Metadata = struct {
+    key: []const u8,
+    value: []const u8,
+};
+
+pub const CallOptions = struct {
+    deadline: Deadline,
+    metadata: []const Metadata = &.{},
+};
+
 pub const Batch = struct {
     outbound: ?*t.ByteBuffer = null,
     inbound: ?*t.ByteBuffer = null,
@@ -45,11 +58,15 @@ pub const Batch = struct {
         QueueShutdown,
     };
 
-    pub fn addMetadata(self: *Batch, key: []const u8, value: []const u8) error{OutOfMemory}!void {
+    /// Fails with `error.InvalidMetadata` for a key or value gRPC would refuse (see `errors.UsageError`).
+    pub fn addMetadata(self: *Batch, key: []const u8, value: []const u8) error{ OutOfMemory, InvalidMetadata }!void {
         const k: t.Slice = try makeSlice(self.allocator, key);
         errdefer c.grpc_slice_unref(k);
+        if (c.grpc_header_key_is_legal(k) == 0) return error.InvalidMetadata;
         const v: t.Slice = try makeSlice(self.allocator, value);
         errdefer c.grpc_slice_unref(v);
+        if (c.grpc_is_binary_header(k) == 0 and c.grpc_header_nonbin_value_is_legal(v) == 0)
+            return error.InvalidMetadata;
 
         try self.metadata.append(self.allocator, .{ .key = k, .value = v });
     }
@@ -280,18 +297,19 @@ pub fn rawUnaryCall(
     queue: *PluckQueue,
     path: []const u8,
     data: []const u8,
-    deadline: Deadline,
+    options: CallOptions,
 ) RawCallError!Batch.Result {
-    const call = channel.createCall(queue, path, deadline);
+    const call = channel.createCall(queue, path, options.deadline);
     defer c.grpc_call_unref(call);
 
     var batch: Batch = .init(allocator);
     defer batch.deinit();
+    for (options.metadata) |m| try batch.addMetadata(m.key, m.value);
     try batch.setMessageToSend(data);
     batch.expectReceivedMessage();
     try batch.start(call);
 
-    return switch (try batch.wait(queue, deadline)) {
+    return switch (try batch.wait(queue, options.deadline)) {
         .timeout => {
             batch.cancel(queue);
             return .timeout;
@@ -343,4 +361,16 @@ test "a timed out batch can be cancelled" {
     try std.testing.expectEqual(@as(c.grpc_status_code, c.GRPC_STATUS_CANCELLED), batch.status.code);
     // No longer in flight: there is no event left to wait for
     batch.cancel(&queue);
+}
+
+test "invalid metadata is rejected" {
+    var batch: Batch = .init(std.testing.allocator);
+    defer batch.deinit();
+
+    try batch.addMetadata("authorization", "Bearer token");
+    try batch.addMetadata("trace-proto-bin", "\x00\x01\n");
+    try std.testing.expectError(error.InvalidMetadata, batch.addMetadata("Authorization", "Bearer token"));
+    try std.testing.expectError(error.InvalidMetadata, batch.addMetadata("", "value"));
+    try std.testing.expectError(error.InvalidMetadata, batch.addMetadata("key", "line\nbreak"));
+    try std.testing.expectEqual(2, batch.metadata.items.len);
 }

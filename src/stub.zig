@@ -5,7 +5,6 @@ const client = @import("client.zig");
 
 const Allocator = std.mem.Allocator;
 const Channel = root.Channel;
-const Deadline = root.Deadline;
 const PluckQueue = root.PluckQueue;
 const errors = root.errors;
 
@@ -83,15 +82,8 @@ pub fn Stub(comptime ServiceFn: anytype) type {
             return Error || client.Batch.Error || client.Batch.WaitError || encodeError(Request) || decodeError(Response);
         }
 
-        pub const Metadata = struct {
-            key: []const u8,
-            value: []const u8,
-        };
-
-        pub const CallOptions = struct {
-            deadline: Deadline,
-            metadata: []const Metadata = &.{},
-        };
+        pub const Metadata = client.Metadata;
+        pub const CallOptions = client.CallOptions;
 
         /// Perform a unary RPC call.
         ///

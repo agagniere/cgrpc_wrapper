@@ -19,7 +19,10 @@ pub const UsageError = error{
     TooManyOperations,
     /// The flags value was illegal for this call
     InvalidFlags,
-    /// Invalid metadata was passed to this call
+    /// Invalid metadata was passed to this call: a key not only made of lowercase letters,
+    /// digits, `-`, `_` and `.`, or a value not only made of printable ASCII for a key
+    /// that does not end with `-bin`.
+    /// Returned by `Batch.addMetadata`, since gRPC itself fails the batch without a status.
     InvalidMetadata,
     /// Invalid message was passed to this call
     InvalidMessage,
