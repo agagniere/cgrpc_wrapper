@@ -258,6 +258,11 @@ pub const Batch = struct {
             c.grpc_slice_unref(metadata.value);
         }
         self.metadata.deinit(self.allocator);
+        // Received from the server, so allocated by gRPC, out of reach of Zig's leak detection
+        c.grpc_slice_unref(self.status.details);
+        if (self.status.description) |description| c.gpr_free(description);
+        c.grpc_metadata_array_destroy(&self.status.leading_metadata);
+        c.grpc_metadata_array_destroy(&self.status.trailing_metadata);
     }
 };
 
