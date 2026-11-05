@@ -11,7 +11,7 @@ This wrapper is a zig interface over libgrpc's core library.
 
 | Branch name | Zig version        | gRPC version |
 |:------------|:-------------------|--------------|
-| `master`    | `master`, `0.17.x` | `1.85.0`     |
+| `master`    | `master`, `0.17.x` | `1.85.1`     |
 | `zig-0.16`  | `0.16.x`           | `1.84.0`     |
 | `zig-0.15`  | `0.15.x`           | `1.80.0`     |
 

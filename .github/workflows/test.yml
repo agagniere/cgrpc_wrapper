@@ -13,11 +13,11 @@ jobs:
         # Only build from source on 0.17 to not have a cache miss
         # each time the compiler is bumped on master
         os: [macos-latest]
-        zig-version: [master, "0.17.0"]
+        zig-version: [master, "0.17.1"]
         use-system-grpc: [true]
         include:
           - os: ubuntu-latest
-            zig-version: "0.17.0"
+            zig-version: "0.17.1"
             use-system-grpc: false
 
     runs-on: ${{ matrix.os }}

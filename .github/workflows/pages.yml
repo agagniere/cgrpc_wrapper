@@ -22,8 +22,8 @@ jobs:
       - uses: actions/checkout@v7
       - uses: mlugg/setup-zig@v2
         with:
-          version: master
-      - run: zig build docs --summary new
+          version: 0.17.1
+      - run: zig build -Dcpu=baseline --summary new docs
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v5
         with:
