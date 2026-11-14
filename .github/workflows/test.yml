@@ -54,6 +54,9 @@ jobs:
         run: zig build -Dlink_mode=dynamic -Dcpu=baseline $SYSTEM_GRPC --summary new
       - name: Build & run tests
         run: zig build -Dlink_mode=dynamic -Dcpu=baseline $SYSTEM_GRPC --summary new test
+      # Not built on master: zig-protobuf lags behind the compiler (0.18 turned `packed struct` into
+      # `bitpack struct`). The examples are not part of the package, so consumers do not depend on them
       - name: Build examples
+        if: matrix.zig-version != 'master'
         working-directory: src/examples
         run: zig build -Dlink_mode=dynamic -Dcpu=baseline $SYSTEM_GRPC --summary new

@@ -16,12 +16,12 @@
     .dependencies = .{
         .grpc = .{ .path = ".." },
         .protobuf = .{
-            .url = "git+https://github.com/Arwalk/zig-protobuf?ref=zig-master#60eeab2f0b56d8a8c54459bf33ce6025f6d0d6fb",
-            .hash = "protobuf-7.0.0-0e82aq5hNAAN_EDpFO9l7GjwEQIca03ubdxMK7K0Sb6k",
+            .url = "git+https://github.com/Arwalk/zig-protobuf?ref=zig-master#e120a9b12725538882d11cd58ff5c3e5257beac2",
+            .hash = "protobuf-7.0.0-0e82arC4OwDtyqhWCCGQ0saSHJZWHXx2qRvjV1Frccym",
         },
         .otelproto = .{
-            .url = "git+https://github.com/open-telemetry/opentelemetry-proto?ref=v1.11.0#790608c4d51e6ffc12210b541e8514cbed9e91a4",
-            .hash = "N-V-__8AAIOkBQAVntdoElRMXVcOsnc-qJUZDDT8auh8Z3aj",
+            .url = "git+https://github.com/open-telemetry/opentelemetry-proto?ref=v1.11.1#b3f75588eb23c5fca62264edd05d382de49beb1a",
+            .hash = "N-V-__8AALnBBQCEZVJkS8zW9WjVZAXPJ29DYydwKYFALBTv",
         },
     },
 }
