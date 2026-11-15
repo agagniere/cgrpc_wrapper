@@ -111,6 +111,7 @@ pub fn Stub(comptime ServiceFn: anytype) type {
             var batch: client.Batch = .init(arena_alloc);
             defer batch.deinit();
             for (options.metadata) |m| try batch.addMetadata(m.key, m.value);
+            if (options.compression) |algorithm| try batch.setCompression(algorithm);
             try batch.setMessageToSend(encoded.written());
             batch.expectReceivedMessage();
             try batch.start(grpc_call);

@@ -20,7 +20,7 @@ pub fn main() !u8 {
     var credentials: grpc.client.Credentials = .localTCP();
     defer credentials.deinit();
 
-    var channel: grpc.Channel = try .init("localhost:50051", credentials);
+    var channel: grpc.Channel = try .init("localhost:50051", credentials, .{});
     defer channel.deinit();
 
     var queue: grpc.PluckQueue = .init();

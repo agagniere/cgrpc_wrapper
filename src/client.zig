@@ -25,6 +25,8 @@ pub const Metadata = struct {
 pub const CallOptions = struct {
     deadline: Deadline,
     metadata: []const Metadata = &.{},
+    /// Compression of the request message. `null` uses the channel's (see `Channel.Options`).
+    compression: ?Channel.Compression = null,
 };
 
 pub const Batch = struct {
@@ -69,6 +71,16 @@ pub const Batch = struct {
             return error.InvalidMetadata;
 
         try self.metadata.append(self.allocator, .{ .key = k, .value = v });
+    }
+
+    /// Compress the message to send with the given algorithm, instead of the channel's default.
+    ///
+    /// Sent as metadata, so it must be called before `start`.
+    pub fn setCompression(self: *Batch, algorithm: Channel.Compression) error{OutOfMemory}!void {
+        self.addMetadata(c.GRPC_COMPRESSION_REQUEST_ALGORITHM_MD_KEY, algorithm.name()) catch |err| switch (err) {
+            error.InvalidMetadata => unreachable, // constant key, and algorithm names are lowercase letters
+            else => |e| return e,
+        };
     }
 
     pub fn setMessageToSend(self: *Batch, message: []const u8) error{OutOfMemory}!void {
@@ -305,6 +317,7 @@ pub fn rawUnaryCall(
     var batch: Batch = .init(allocator);
     defer batch.deinit();
     for (options.metadata) |m| try batch.addMetadata(m.key, m.value);
+    if (options.compression) |algorithm| try batch.setCompression(algorithm);
     try batch.setMessageToSend(data);
     batch.expectReceivedMessage();
     try batch.start(call);
@@ -341,7 +354,7 @@ test "a timed out batch can be cancelled" {
 
     var credentials: Credentials = .insecure();
     defer credentials.deinit();
-    var channel: Channel = try .init(target, credentials);
+    var channel: Channel = try .init(target, credentials, .{});
     defer channel.deinit();
     var queue: PluckQueue = .init();
     defer queue.deinit();
@@ -373,4 +386,93 @@ test "invalid metadata is rejected" {
     try std.testing.expectError(error.InvalidMetadata, batch.addMetadata("", "value"));
     try std.testing.expectError(error.InvalidMetadata, batch.addMetadata("key", "line\nbreak"));
     try std.testing.expectEqual(2, batch.metadata.items.len);
+}
+
+test "compression is requested through metadata" {
+    var batch: Batch = .init(std.testing.allocator);
+    defer batch.deinit();
+
+    try batch.setCompression(.gzip);
+    try std.testing.expectEqual(1, batch.metadata.items.len);
+    try std.testing.expectEqualStrings("grpc-internal-encoding-request", asZigSlice(&batch.metadata.items[0].key));
+    try std.testing.expectEqualStrings("gzip", asZigSlice(&batch.metadata.items[0].value));
+}
+
+/// Send a call to a socket that never answers, and return the compression flag
+/// of the gRPC message prefix of the first DATA frame it received (1 when compressed).
+fn compressionFlagOnTheWire(channel_options: Channel.Options, call_compression: ?Channel.Compression) !u8 {
+    root.init();
+    defer root.deinit();
+
+    const io = std.testing.io;
+    const address: std.Io.net.IpAddress = try .parse("127.0.0.1", 0);
+    var server = try address.listen(io, .{});
+    defer server.deinit(io);
+
+    var target_buffer: [32]u8 = undefined;
+    const target = try std.fmt.bufPrintSentinel(&target_buffer, "127.0.0.1:{d}", .{server.socket.address.getPort()}, 0);
+
+    var credentials: Credentials = .insecure();
+    defer credentials.deinit();
+    var channel: Channel = try .init(target, credentials, channel_options);
+    defer channel.deinit();
+    var queue: PluckQueue = .init();
+    defer queue.deinit();
+    defer queue.shutdown();
+
+    const call = channel.createCall(&queue, "/test.Service/Method", .{ .duration = .fromSeconds(30) });
+    defer c.grpc_call_unref(call);
+
+    var batch: Batch = .init(std.testing.allocator);
+    defer batch.deinit();
+    if (call_compression) |algorithm| try batch.setCompression(algorithm);
+    // Repetitive, so that compressing it makes it smaller: gRPC sends it as is otherwise
+    try batch.setMessageToSend(&@as([1000]u8, @splat('a')));
+    batch.expectReceivedMessage();
+    try batch.start(call);
+    defer batch.cancel(&queue);
+
+    var stream = try server.accept(io);
+    defer stream.close(io);
+    var buffer: [1024]u8 = undefined;
+    var stream_reader = stream.reader(io, &buffer);
+    const reader = &stream_reader.interface;
+
+    // HTTP/2: connection preface, then frames made of a 9 bytes header and a payload.
+    // The channel only sends calls once the server sent its (empty) SETTINGS frame
+    var write_buffer: [16]u8 = undefined;
+    var stream_writer = stream.writer(io, &write_buffer);
+    const settings_frame = [_]u8{ 0, 0, 0, 4, 0, 0, 0, 0, 0 };
+    try stream_writer.interface.writeAll(&settings_frame);
+    try stream_writer.interface.flush();
+
+    var preface: [24]u8 = undefined;
+    try reader.readSliceAll(&preface);
+    var payload: [4096]u8 = undefined;
+    for (0..10) |_| {
+        var header: [9]u8 = undefined;
+        try reader.readSliceAll(&header);
+        const length = std.mem.readInt(u24, header[0..3], .big);
+        const frame_type = header[3];
+        try reader.readSliceAll(payload[0..length]);
+        const data_frame = 0;
+        if (frame_type == data_frame) return payload[0];
+    }
+    return error.NoDataFrame;
+}
+
+test "messages are sent uncompressed by default" {
+    try std.testing.expectEqual(0, try compressionFlagOnTheWire(.{}, null));
+}
+
+test "a channel can compress every message" {
+    try std.testing.expectEqual(1, try compressionFlagOnTheWire(.{ .compression = .gzip }, null));
+}
+
+test "a call can ask for compression" {
+    try std.testing.expectEqual(1, try compressionFlagOnTheWire(.{}, .gzip));
+}
+
+test "a call can opt out of the channel's compression" {
+    try std.testing.expectEqual(0, try compressionFlagOnTheWire(.{ .compression = .gzip }, .none));
 }

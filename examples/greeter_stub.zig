@@ -13,7 +13,7 @@ pub fn main(init: std.process.Init) !void {
     var credentials: grpc.client.Credentials = .localTCP();
     defer credentials.deinit();
 
-    var channel: grpc.Channel = try .init("localhost:50051", credentials);
+    var channel: grpc.Channel = try .init("localhost:50051", credentials, .{});
     defer channel.deinit();
 
     var queue: grpc.PluckQueue = .init();

@@ -2,6 +2,11 @@ const c = @import("cgrpc");
 
 /// The Channel interface allows creation of Call objects.
 pub const Channel = c.grpc_channel;
+/// A single channel argument: a key with an integer, string or pointer value.
+/// Servers take them too.
+pub const ChannelArgument = c.grpc_arg;
+/// An array of channel arguments, to configure a channel (or server) when creating it.
+pub const ChannelArguments = c.grpc_channel_args;
 /// A channel credentials object represents a way to authenticate a client on a channel.
 pub const ChannelCredentials = c.grpc_channel_credentials;
 /// A Call represents an RPC. When created, it is in a configuration state
