@@ -22,12 +22,17 @@ jobs:
 
     runs-on: ${{ matrix.os }}
     # For the examples to reuse the libgrpc built by the root project, the paths
-    # passed to the compiler must be identical in both builds. Paths under the
+    # passed to the compiler must be identical in both builds. Paths under a
     # build root are passed relative to it, so the package directory and the
     # cache (that setup-zig puts in the workspace) must be outside both build
-    # roots: check out the repository in a subdirectory.
+    # roots. Zig also resolves relative directories textually, without following
+    # symlinks: they only give the same absolute path from two build roots at the
+    # same depth. So the repository is checked out in src/, and the examples are
+    # copied to examples/, next to it and to zig-pkg/.
+    # The package directory is relative because Zig refuses the path dependencies
+    # of a package (as zig-protobuf's pkg/protoc) when they resolve to an absolute path.
     env:
-      ZIG_LOCAL_PKG_DIR: ${{ github.workspace }}/zig-pkg
+      ZIG_LOCAL_PKG_DIR: ../zig-pkg
     defaults:
       run:
         working-directory: src
@@ -50,13 +55,20 @@ jobs:
           # that empties it after each run. Compressed, it only takes about 0.5 GB of storage
           cache-size-limit: 4096
       # The CPU is part of every cache key, and runners' CPUs vary: target the baseline CPU to reuse the cache
-      - name: Build script
+      - name: Build maker & fetch dependencies
+        run: zig build -Dlink_mode=dynamic -Dcpu=baseline $SYSTEM_GRPC --summary new --fetch
+      - name: Build libgrpc if applicable
         run: zig build -Dlink_mode=dynamic -Dcpu=baseline $SYSTEM_GRPC --summary new
-      - name: Build & run tests
+      - name: Run tests
         run: zig build -Dlink_mode=dynamic -Dcpu=baseline $SYSTEM_GRPC --summary new test
       # Not built on master: zig-protobuf lags behind the compiler (0.18 turned `packed struct` into
       # `bitpack struct`). The examples are not part of the package, so consumers do not depend on them
       - name: Build examples
         if: matrix.zig-version != 'master'
-        working-directory: src/examples
-        run: zig build -Dlink_mode=dynamic -Dcpu=baseline $SYSTEM_GRPC --summary new
+        working-directory: .
+        run: |
+          cp -R src/examples examples
+          # The examples depend on the repository through a path, now one level up
+          sed -i.bak 's|path = ".."|path = "../src"|' examples/build.zig.zon
+          cd examples
+          zig build -Dlink_mode=dynamic -Dcpu=baseline $SYSTEM_GRPC --summary new

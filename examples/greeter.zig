@@ -20,7 +20,7 @@ pub fn main() !u8 {
     var credentials: grpc.client.Credentials = .localTCP();
     defer credentials.deinit();
 
-    var channel: grpc.Channel = try .init("localhost:50051", credentials);
+    var channel: grpc.Channel = try .init("localhost:50051", credentials, .{});
     defer channel.deinit();
 
     var queue: grpc.PluckQueue = .init();
@@ -43,6 +43,9 @@ pub fn main() !u8 {
     try batch.addMetadata("binary.name", build_info.name);
     try batch.addMetadata("binary.version", build_info.version);
     try batch.addMetadata("zig.version", builtin.zig_version_string);
+    // Only this call is compressed, whatever the channel's setting (see examples/greeter_stub.zig).
+    // gRPC keeps a message uncompressed when that does not make it smaller, as is the case of this tiny request
+    try batch.setCompression(.gzip);
     try batch.setMessageToSend(encoded_name.written());
     batch.expectReceivedMessage();
     try batch.start(greet_call);

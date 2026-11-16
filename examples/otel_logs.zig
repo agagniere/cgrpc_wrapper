@@ -16,7 +16,7 @@ pub fn main(init: std.process.Init) !u8 {
     var credentials: grpc.client.Credentials = .localTCP();
     defer credentials.deinit();
 
-    var channel: grpc.Channel = try .init("localhost:4317", credentials);
+    var channel: grpc.Channel = try .init("localhost:4317", credentials, .{});
     defer channel.deinit();
 
     var queue: grpc.PluckQueue = .init();
@@ -37,11 +37,15 @@ pub fn main(init: std.process.Init) !u8 {
     var reply = stub.call(
         .Export,
         .{ .resource_logs = logs.resource_logs },
-        .{ .deadline = .{ .duration = .fromSeconds(3) }, .metadata = &.{
-            .{ .key = "binary.name", .value = build_info.name },
-            .{ .key = "binary.version", .value = build_info.version },
-            .{ .key = "zig.version", .value = builtin.zig_version_string },
-        } },
+        .{
+            .deadline = .{ .duration = .fromSeconds(3) },
+            .compression = .gzip,
+            .metadata = &.{
+                .{ .key = "binary.name", .value = build_info.name },
+                .{ .key = "binary.version", .value = build_info.version },
+                .{ .key = "zig.version", .value = builtin.zig_version_string },
+            },
+        },
     ) catch |err| {
         std.log.err("gRPC call failed: {t}", .{err});
         return 1;

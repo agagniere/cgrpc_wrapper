@@ -13,7 +13,9 @@ pub fn main(init: std.process.Init) !void {
     var credentials: grpc.client.Credentials = .localTCP();
     defer credentials.deinit();
 
-    var channel: grpc.Channel = try .init("localhost:50051", credentials);
+    // Every message sent on this channel is compressed. gRPC keeps a message uncompressed when that
+    // does not make it smaller, as is the case of this tiny request
+    var channel: grpc.Channel = try .init("localhost:50051", credentials, .{ .compression = .gzip });
     defer channel.deinit();
 
     var queue: grpc.PluckQueue = .init();
